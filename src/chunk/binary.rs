@@ -1,4 +1,3 @@
-use anyhow::{Result, Error};
 use nom;
 use nom_derive::Nom;
 use nom::number::streaming::{le_f64, le_i64};
@@ -24,7 +23,14 @@ pub const TAG_INTEGER: u8 = 0x13;
 pub const TAG_SHORT_STR: u8 = 0x04;
 pub const TAG_LONG_STR: u8 = 0x14;
 
-#[derive(Nom)]
+#[derive(Debug, Nom)]
+struct Chunk {
+    pub header: Header,
+    pub size_upvalues: u8,
+    pub main: Prototype,
+}
+
+#[derive(Debug, Nom)]
 struct Header {
     #[nom(Count = "4")]
     signature: Vec<u8>,
@@ -43,12 +49,193 @@ struct Header {
     luac_num: f64,
 }
 
+#[derive(Debug)]
+// #[nom(DebugDerive)]
+// #[nom(LittleEndian)]
+struct Prototype {
+    // len: u8,
+    // #[nom(Count = "len-1", Cond = "len > 0")]
+    // name: Option<Vec<u8>>,
+    // #[nom(Value = "String::from_utf8(name.clone()).unwrap()", Cond = "len > 0")]
+    pub source: Option<String>,
+    pub line_defined: u32,
+    pub last_line_defined: u32,
+    pub num_params: u8,
+    pub is_vararg: u8,
+    pub max_stack_size: u8,
+    // #[nom(Parse = "le_u32")]
+    code_length: u32,
+    // #[nom(Count = "code_length")]
+    pub code: Vec<u32>,
+    const_length: u32,
+    // #[nom(Count = "const_length")]
+    pub constants: Vec<Constant>,
+    upvalue_length: u32,
+    // #[nom(Count = "upvalue_length")]
+    pub upvalues: Vec<UpValue>,
+    proto_length: u32,
+    // #[nom(Count = "proto_length")]
+    pub prototypes: Vec<Prototype>,
+    line_length: u32,
+    // #[nom(Count = "line_length")]
+    pub line_info: Vec<u32>,
+    loc_length: u32,
+    // #[nom(Count = "loc_length")]
+    pub loc_vars: Vec<LocVar>,
+    up_length: u32,
+    // #[nom(Count = "up_length")]
+    pub upvalue_names: Vec<UpValueName>,
+}
+
+impl Prototype
+{
+    pub fn parse(orig_i: &[u8]) -> nom::IResult<&[u8], Prototype>
+    {
+        let i = orig_i;
+        let (mut i, len) = nom::number::streaming::le_u8(i)?;
+        let mut src: Option<String> = None;
+        if len > 0 {
+            let (chunk, name) = nom::multi::count(nom::number::streaming::le_u8, { len - 1 } as usize)(i)?;
+            let (chunk, source) = nom::combinator::cond(len > 0,
+                 {
+                     |__i__|
+                         Ok((__i__, String::from_utf8(name.clone()).unwrap()))
+                 })(chunk)?;
+            src = source;
+            i = chunk;
+        }
+        let (i, line_defined) = nom::number::streaming::le_u32(i)?;
+        let (i, last_line_defined) = nom::number::streaming::le_u32(i)?;
+        let (i, num_params) = nom::number::streaming::le_u8(i)?;
+        let (i, is_vararg) = nom::number::streaming::
+        le_u8(i)?;
+        let (i, max_stack_size) = nom::number::streaming::
+        le_u8(i)?;
+        let (i, code_length) = nom::number::streaming::
+        le_u32(i)?;
+        let (i, code) = nom::multi::
+        count(nom::number::streaming::le_u32, { code_length } as usize)
+            (i)?;
+        let (i, const_length) = nom::number::streaming::le_u32(i)
+            ?;
+        let (i, constants) = nom::multi::
+        count(Constant::parse, { const_length } as usize)(i)?;
+        let (i, upvalue_length) = nom::number::streaming::le_u32(i)?;
+        let (i, upvalues) = nom::multi::
+        count(UpValue::parse, { upvalue_length } as usize)(i)?;
+        let (i, proto_length) = nom::number::streaming::le_u32(i)?;
+        let (i, prototypes) = nom::multi::
+        count(Prototype::parse, { proto_length } as usize)(i)?;
+        let (i, line_length) = nom::number::streaming::le_u32(i)?;
+        let (i, line_info) = nom::multi::
+        count(nom::number::streaming::le_u32, { line_length } as usize)
+            (i)?;
+        let (i, loc_length) = nom::number::streaming::le_u32(i)?
+            ;
+        let (i, loc_vars) = nom::multi::
+        count(LocVar::parse, { loc_length } as usize)(i)?;
+        let (i, up_length) = nom::number::streaming::le_u32(i)?;
+        let (i, upvalue_names) = nom::multi::
+        count(UpValueName::parse, { up_length } as usize)(i)?;
+        let
+            struct_def =
+            Prototype
+            {
+                // len,
+                // name,
+                source: src,
+                line_defined,
+                last_line_defined,
+                num_params,
+                is_vararg,
+                max_stack_size,
+                code_length,
+                code,
+                const_length,
+                constants,
+                upvalue_length,
+                upvalues,
+                proto_length,
+                prototypes,
+                line_length,
+                line_info,
+                loc_length,
+                loc_vars,
+                up_length,
+                upvalue_names,
+            };
+        Ok((i, struct_def))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Nom)]
+pub struct ShortString {
+    len: u8,
+    #[nom(Count = "len-1")]
+    content: Vec<u8>,
+    #[nom(Value = "String::from_utf8(content.clone()).unwrap()")]
+    pub value: String,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Nom)]
+pub struct ConstantType(pub u8);
+
+#[derive(Clone, Debug, PartialEq, Nom)]
+#[nom(Selector = "ConstantType")]
+// #[nom(DebugDerive)]
+#[nom(LittleEndian)]
+pub enum ConstantValue {
+    #[nom(Selector = "ConstantType(0)")] Nil,
+    #[nom(Selector = "ConstantType(1)")] Boolean(u8),
+    #[nom(Selector = "ConstantType(3)")] Number(#[nom(Parse = "le_f64")]f64),
+    #[nom(Selector = "ConstantType(19)")] Integer(i64),
+    #[nom(Selector = "ConstantType(4)")] ShortStr(ShortString),
+}
+
+#[derive(Clone, Debug, PartialEq, Nom)]
+pub struct Constant {
+    pub const_type: ConstantType,
+    #[nom(Parse = "{ |i| ConstantValue::parse(i, const_type) }")]
+    pub const_value: ConstantValue,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Nom)]
+#[nom(LittleEndian)]
+pub struct LocVar {
+    var_name: VariableName,
+    start_pc: u32,
+    end_pc: u32,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Nom)]
+pub struct VariableName {
+    len: u8,
+    #[nom(Count = "len-1")]
+    content: Vec<u8>,
+    #[nom(Value = "String::from_utf8(content.clone()).unwrap()")]
+    pub value: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Nom)]
+pub struct UpValue {
+    instack: u8,
+    idx: u8,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Nom)]
+pub struct UpValueName {
+    len: u8,
+    #[nom(Count = "len-1")]
+    content: Vec<u8>,
+    #[nom(Value = "String::from_utf8(content.clone()).unwrap()")]
+    pub value: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use nom::bytes::complete::tag;
     use nom::IResult;
-    use nom::Err;
     use std::fs;
 
     fn parser(s: &[u8]) -> IResult<&[u8], &[u8]> {
@@ -71,11 +258,12 @@ mod tests {
 
     #[test]
     fn parse_hello() {
-        let name = "luac.out";
+        let name = "foo.out";
         let content = read(name).unwrap();
-        let parse_result = Header::parse(content.as_slice());
+        let parse_result = Chunk::parse(content.as_slice());
         assert!(parse_result.is_ok());
-        let head: Header = parse_result.unwrap().1;
+        let chunk: Chunk = parse_result.unwrap().1;
+        let head: Header = chunk.header;
         assert_eq!(head.signature.as_slice(), LUA_SIGNATURE);
         assert_eq!(head.version, 83);
         assert_eq!(head.format, 0);
@@ -85,7 +273,33 @@ mod tests {
         assert_eq!(head.instruction_size, 4);
         assert_eq!(head.lua_integer_size, 8);
         assert_eq!(head.lua_number_size, 8);
-        assert_eq!(head.luac_int, 0x5678);
-        assert_eq!(head.luac_num, 370.5);
+        assert_eq!(head.luac_int, LUAC_INT);
+        assert_eq!(head.luac_num, LUAC_NUM);
+
+        assert_eq!(chunk.size_upvalues, 1);
+        let main = chunk.main;
+        // assert_eq!(main.len, 7);
+        // assert_eq!(main.name.len(), 6);
+        assert_eq!(main.source.unwrap().as_str(), "=stdin");
+        assert_eq!(main.line_defined, 0);
+        assert_eq!(main.last_line_defined, 0);
+        assert_eq!(main.num_params, 0);
+        assert_eq!(main.is_vararg, 1);
+        assert_eq!(main.max_stack_size, 2);
+        assert_eq!(main.code_length, 3);
+        // Constants
+        assert_eq!(main.const_length, 1);
+        let lua_const = main.constants[0].clone();
+        assert_eq!(lua_const.const_type.0, 4);
+        assert_eq!(lua_const.const_value, ConstantValue::ShortStr(ShortString { len: 4, content: vec![102, 111, 111], value: "foo".to_string() }));
+        // Upvalue
+        assert_eq!(main.upvalue_length, 1);
+        assert_eq!(main.upvalues[0], UpValue { instack: 1, idx: 0 });
+        // Prototype
+        assert_eq!(main.proto_length, 1);
+        assert_eq!(main.line_length, 3);
+        assert_eq!(main.loc_length, 0);
+        assert_eq!(main.up_length, 1);
+        assert_eq!(main.upvalue_names[0].value, "_ENV".to_string());
     }
 }
