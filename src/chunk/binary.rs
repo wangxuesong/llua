@@ -25,17 +25,17 @@ pub const TAG_SHORT_STR: u8 = 0x04;
 pub const TAG_LONG_STR: u8 = 0x14;
 
 #[derive(Debug, Nom)]
-struct Chunk {
+pub struct Chunk {
     pub header: Header,
     pub size_upvalues: u8,
     pub main: Prototype,
 }
 
 #[derive(Debug, Nom)]
-struct Header {
+pub struct Header {
     #[nom(Count = "4")]
     signature: Vec<u8>,
-    version: u8,
+    pub version: u8,
     format: u8,
     #[nom(Count = "6")]
     luac_data: Vec<u8>,
@@ -53,7 +53,7 @@ struct Header {
 #[derive(Debug)]
 // #[nom(DebugDerive)]
 // #[nom(LittleEndian)]
-struct Prototype {
+pub struct Prototype {
     pub source: Option<String>,
     pub line_defined: u32,
     pub last_line_defined: u32,
@@ -177,9 +177,9 @@ pub struct Constant {
 #[derive(Debug, PartialEq, Eq, Clone, Nom)]
 #[nom(LittleEndian)]
 pub struct LocVar {
-    var_name: VariableName,
-    start_pc: u32,
-    end_pc: u32,
+    pub var_name: VariableName,
+    pub start_pc: u32,
+    pub end_pc: u32,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Nom)]
@@ -193,8 +193,8 @@ pub struct VariableName {
 
 #[derive(Clone, Debug, PartialEq, Nom)]
 pub struct UpValue {
-    instack: u8,
-    idx: u8,
+    pub instack: u8,
+    pub idx: u8,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Nom)]
