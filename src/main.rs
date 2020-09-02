@@ -1,7 +1,9 @@
 mod chunk;
+mod vm;
 
 use clap::{Arg, App};
 use crate::chunk::binary::{Chunk, Header, Prototype, Constant};
+use crate::vm::{Instruction};
 
 fn main() {
     let matches = App::new("llua")
@@ -65,7 +67,7 @@ fn print_proto_header(f: &Prototype) {
 fn print_code(f: &Prototype) {
     for pc in 0..f.code.len() {
         let line = f.line_info.get(pc).map(|n| n.to_string()).unwrap_or(String::new());
-        println!("\t{}\t[{}]\t0x{:08X}", pc + 1, line, f.code[pc]);
+        println!("\t{}\t[{}]\t{}", pc + 1, line, f.code[pc].opname());
     }
 }
 
