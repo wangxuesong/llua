@@ -4,6 +4,7 @@ mod vm;
 use clap::{Arg, App};
 use crate::chunk::binary::{Chunk, Header, Prototype, Constant};
 use crate::vm::{Instruction};
+use crate::vm::opcodes::*;
 
 fn main() {
     let matches = App::new("llua")
@@ -67,8 +68,56 @@ fn print_proto_header(f: &Prototype) {
 fn print_code(f: &Prototype) {
     for pc in 0..f.code.len() {
         let line = f.line_info.get(pc).map(|n| n.to_string()).unwrap_or(String::new());
-        println!("\t{}\t[{}]\t{}", pc + 1, line, f.code[pc].opname());
+        let inst = f.code[pc];
+        print!("\t{}\t[{}]\t{} \t", pc + 1, line, inst.opname());
+        match inst.opmode() {
+            OP_MODE_ABC => print_abc(inst),
+            OP_MODE_ABX => print_abx(inst),
+            OP_MODE_ASBX => print_asbx(inst),
+            OP_MODE_AX => print_ax(inst),
+            _ => (),
+        }
+        println!();
     }
+}
+
+fn print_abc(i: u32) {
+    let (a, b, c) = i.abc();
+    print!("{}", a);
+    if i.b_mode() != OP_ARG_N {
+        if b > 0xFF {
+            print!(" {}", -1 - (b & 0xFF))
+        } else {
+            print!(" {}", b)
+        }
+    }
+    if i.c_mode() != OP_ARG_N {
+        if c > 0xFF {
+            print!(" {}", -1 - (c & 0xFF))
+        } else {
+            print!(" {}", c)
+        }
+    }
+}
+
+fn print_abx(i: u32) {
+    let (a, bx) = i.a_bx();
+    print!("{}", a);
+    if i.b_mode() == OP_ARG_K {
+        print!(" {}", -1 - bx)
+    } else if i.b_mode() == OP_ARG_U {
+        print!(" {}", bx)
+    }
+}
+
+fn print_asbx(i: u32) {
+    let (a, sbx) = i.a_sbx();
+    print!("{} {}", a, sbx);
+}
+
+fn print_ax(i: u32) {
+    let ax = i.ax();
+    print!("{}", -1 - ax);
 }
 
 fn print_detail(f: &Prototype) {
