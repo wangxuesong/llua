@@ -1,30 +1,49 @@
 mod chunk;
+mod state;
 mod vm;
 
-use clap::{Arg, App};
-use crate::chunk::binary::{Chunk, Header, Prototype, Constant};
-use crate::vm::{Instruction};
+use crate::chunk::binary::{Chunk, Constant, Header, Prototype};
+use crate::state::LuaState;
 use crate::vm::opcodes::*;
+use crate::vm::{lua_vm_execute, Instruction};
+use clap::{App, Arg};
 
 fn main() {
     let matches = App::new("llua")
         .version("0.1")
         .about("for sweet hui")
-        .arg(Arg::with_name("INPUT")
-            .about("Sets the input file to use")
-            .required(true)
-            .index(1))
-        .arg(Arg::with_name("list")
-            .short('l')
-            .long("list")
-            // .multiple(true)
-            .about("list binary file content"))
+        .arg(
+            Arg::with_name("INPUT")
+                .about("Sets the input file to use")
+                .required(true)
+                .index(1),
+        )
+        .arg(
+            Arg::with_name("list")
+                .short('l')
+                .long("list")
+                // .multiple(true)
+                .about("list binary file content"),
+        )
         .get_matches();
 
     if matches.is_present("list") {
         let input = matches.value_of("INPUT").unwrap();
         show_binary(input);
+        return;
     }
+    let input = matches.value_of("INPUT").unwrap();
+    lua_main(input);
+}
+
+fn lua_main(input: &str) {
+    let content = std::fs::read(input).unwrap();
+    let parse_result = Chunk::parse(content.as_slice()).unwrap();
+    let chunk: Chunk = parse_result.1;
+    let index = chunk.main.max_stack_size.clone() as isize;
+    let mut l = LuaState::new(chunk.main);
+    l.set_top(&index);
+    lua_vm_execute(&mut l, &mut Option::None);
 }
 
 fn show_binary(input: &str) {
@@ -51,7 +70,11 @@ fn print_proto(f: &Prototype) {
 }
 
 fn print_proto_header(f: &Prototype) {
-    let func_type = if f.line_defined > 0 { "function" } else { "main" };
+    let func_type = if f.line_defined > 0 {
+        "function"
+    } else {
+        "main"
+    };
     let vararg_flag = if f.is_vararg > 0 { "+" } else { "" };
     let source = f.source.as_ref().map(|x| x.as_str()).unwrap_or("");
     print!("\n{}", func_type);
@@ -67,7 +90,11 @@ fn print_proto_header(f: &Prototype) {
 
 fn print_code(f: &Prototype) {
     for pc in 0..f.code.len() {
-        let line = f.line_info.get(pc).map(|n| n.to_string()).unwrap_or(String::new());
+        let line = f
+            .line_info
+            .get(pc)
+            .map(|n| n.to_string())
+            .unwrap_or(String::new());
         let inst = f.code[pc];
         print!("\t{}\t[{}]\t{} \t", pc + 1, line, inst.opname());
         match inst.opmode() {
@@ -150,7 +177,13 @@ fn print_locals(f: &Prototype) {
     println!("locals ({}):", n);
     for i in 0..n {
         let var = &f.loc_vars[i];
-        println!("\t{}\t{}\t{}\t{}", i, var.var_name.value, var.start_pc + 1, var.end_pc + 1);
+        println!(
+            "\t{}\t{}\t{}\t{}",
+            i,
+            var.var_name.value,
+            var.start_pc + 1,
+            var.end_pc + 1
+        );
     }
 }
 
@@ -159,7 +192,11 @@ fn print_upvals(f: &Prototype) {
     println!("upvalues ({}):", n);
     for i in 0..n {
         let upval = &f.upvalues[i];
-        let name = f.upvalue_names.get(i).map(|x| x.value.as_str()).unwrap_or("");
+        let name = f
+            .upvalue_names
+            .get(i)
+            .map(|x| x.value.as_str())
+            .unwrap_or("");
         println!("\t{}\t{}\t{}\t{}", i, name, upval.instack, upval.idx);
     }
 }

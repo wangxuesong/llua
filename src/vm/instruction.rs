@@ -1,6 +1,8 @@
-use super::opcodes::OPCODES;
+use super::opcodes::*;
+use crate::state::{LuaState, LuaValue};
 
-const MAXARG_BX: isize = (1 << 18) - 1; // 262143
+const MAXARG_BX: isize = (1 << 18) - 1;
+// 262143
 const MAXARG_SBX: isize = MAXARG_BX >> 1; // 131071
 
 /*
@@ -26,6 +28,7 @@ pub trait Instruction {
     fn a_bx(self) -> (isize, isize);
     fn a_sbx(self) -> (isize, isize);
     fn ax(self) -> isize;
+    fn execute(self, l: &mut LuaState);
 }
 
 impl Instruction for u32 {
@@ -69,5 +72,40 @@ impl Instruction for u32 {
 
     fn ax(self) -> isize {
         (self >> 6) as isize
+    }
+
+    fn execute(self, l: &mut LuaState) {
+        match self.opcode() {
+            OP_LOADK => {
+                dbg!(self.opname());
+                let (mut a, bx) = self.a_bx();
+                // a += 1;
+
+                l.get_const(bx);
+                l.set_value(a);
+            }
+            OP_ADD => {
+                dbg!(self.opname());
+                let (a, b, c) = self.abc();
+                if let LuaValue::Integer(b_value) = l.get_rk(b) {
+                    if let LuaValue::Integer(c_value) = l.get_rk(c) {
+                        let add = b_value + c_value;
+                        l.stack.push(LuaValue::Integer(add));
+                        l.set_value(a);
+                    }
+                }
+                let c_value = l.get_rk(c);
+            }
+            OP_FORLOOP => {
+                dbg!(self.opname());
+            }
+            OP_FORPREP => {
+                dbg!(self.opname());
+            }
+            _ => {
+                dbg!(self.opname());
+                unimplemented!()
+            }
+        }
     }
 }
