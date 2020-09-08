@@ -1,7 +1,6 @@
 use nom;
-use nom_derive::Nom;
 use nom::number::streaming::{le_f64, le_i64};
-
+use nom_derive::Nom;
 
 // "\x1bLua"
 pub const LUA_SIGNATURE: [u8; 4] = [0x1b, 0x4c, 0x75, 0x61];
@@ -69,20 +68,17 @@ pub struct Prototype {
     pub upvalue_names: Vec<UpValueName>,
 }
 
-impl Prototype
-{
-    pub fn parse(orig_i: &[u8]) -> nom::IResult<&[u8], Prototype>
-    {
+impl Prototype {
+    pub fn parse(orig_i: &[u8]) -> nom::IResult<&[u8], Prototype> {
         let i = orig_i;
         let (mut i, len) = nom::number::streaming::le_u8(i)?;
         let mut source: Option<String> = None;
         if len > 0 {
-            let (chunk, name) = nom::multi::count(nom::number::streaming::le_u8, { len - 1 } as usize)(i)?;
-            let (chunk, src) = nom::combinator::cond(len > 0,
-                 {
-                     |__i__|
-                         Ok((__i__, String::from_utf8(name.clone()).unwrap()))
-                 })(chunk)?;
+            let (chunk, name) =
+                nom::multi::count(nom::number::streaming::le_u8, { len - 1 } as usize)(i)?;
+            let (chunk, src) = nom::combinator::cond(len > 0, {
+                |__i__| Ok((__i__, String::from_utf8(name.clone()).unwrap()))
+            })(chunk)?;
             source = src;
             i = chunk;
         }
@@ -92,53 +88,45 @@ impl Prototype
         let (i, is_vararg) = nom::number::streaming::le_u8(i)?;
         let (i, max_stack_size) = nom::number::streaming::le_u8(i)?;
         let (i, code_length) = nom::number::streaming::le_u32(i)?;
-        let (i, code) = nom::multi::count(
-            nom::number::streaming::le_u32, { code_length } as usize)(i)?;
+        let (i, code) =
+            nom::multi::count(nom::number::streaming::le_u32, { code_length } as usize)(i)?;
         let (i, const_length) = nom::number::streaming::le_u32(i)?;
-        let (i, constants) = nom::multi::count(
-            Constant::parse, { const_length } as usize)(i)?;
+        let (i, constants) = nom::multi::count(Constant::parse, { const_length } as usize)(i)?;
         let (i, upvalue_length) = nom::number::streaming::le_u32(i)?;
-        let (i, upvalues) = nom::multi::count(
-            UpValue::parse, { upvalue_length } as usize)(i)?;
+        let (i, upvalues) = nom::multi::count(UpValue::parse, { upvalue_length } as usize)(i)?;
         let (i, proto_length) = nom::number::streaming::le_u32(i)?;
-        let (i, prototypes) = nom::multi::count(
-            Prototype::parse, { proto_length } as usize)(i)?;
+        let (i, prototypes) = nom::multi::count(Prototype::parse, { proto_length } as usize)(i)?;
         let (i, line_length) = nom::number::streaming::le_u32(i)?;
-        let (i, line_info) = nom::multi::count(
-            nom::number::streaming::le_u32, { line_length } as usize)(i)?;
+        let (i, line_info) =
+            nom::multi::count(nom::number::streaming::le_u32, { line_length } as usize)(i)?;
         let (i, loc_length) = nom::number::streaming::le_u32(i)?;
-        let (i, loc_vars) = nom::multi::count(
-            LocVar::parse, { loc_length } as usize)(i)?;
+        let (i, loc_vars) = nom::multi::count(LocVar::parse, { loc_length } as usize)(i)?;
         let (i, up_length) = nom::number::streaming::le_u32(i)?;
-        let (i, upvalue_names) = nom::multi::count(
-            UpValueName::parse, { up_length } as usize)(i)?;
-        let
-            struct_def =
-            Prototype
-            {
-                // len,
-                // name,
-                source,
-                line_defined,
-                last_line_defined,
-                num_params,
-                is_vararg,
-                max_stack_size,
-                // code_length,
-                code,
-                // const_length,
-                constants,
-                // upvalue_length,
-                upvalues,
-                // proto_length,
-                prototypes,
-                // line_length,
-                line_info,
-                // loc_length,
-                loc_vars,
-                // up_length,
-                upvalue_names,
-            };
+        let (i, upvalue_names) = nom::multi::count(UpValueName::parse, { up_length } as usize)(i)?;
+        let struct_def = Prototype {
+            // len,
+            // name,
+            source,
+            line_defined,
+            last_line_defined,
+            num_params,
+            is_vararg,
+            max_stack_size,
+            // code_length,
+            code,
+            // const_length,
+            constants,
+            // upvalue_length,
+            upvalues,
+            // proto_length,
+            prototypes,
+            // line_length,
+            line_info,
+            // loc_length,
+            loc_vars,
+            // up_length,
+            upvalue_names,
+        };
         Ok((i, struct_def))
     }
 }
@@ -160,11 +148,16 @@ pub struct ConstantType(pub u8);
 // #[nom(DebugDerive)]
 #[nom(LittleEndian)]
 pub enum ConstantValue {
-    #[nom(Selector = "ConstantType(0)")] Nil,
-    #[nom(Selector = "ConstantType(1)")] Boolean(u8),
-    #[nom(Selector = "ConstantType(3)")] Number(#[nom(Parse = "le_f64")]f64),
-    #[nom(Selector = "ConstantType(19)")] Integer(i64),
-    #[nom(Selector = "ConstantType(4)")] ShortStr(ShortString),
+    #[nom(Selector = "ConstantType(0)")]
+    Nil,
+    #[nom(Selector = "ConstantType(1)")]
+    Boolean(u8),
+    #[nom(Selector = "ConstantType(3)")]
+    Number(#[nom(Parse = "le_f64")] f64),
+    #[nom(Selector = "ConstantType(19)")]
+    Integer(i64),
+    #[nom(Selector = "ConstantType(4)")]
+    ShortStr(ShortString),
 }
 
 #[derive(Clone, Debug, PartialEq, Nom)]
@@ -265,7 +258,14 @@ mod tests {
         assert_eq!(main.constants.len(), 1);
         let lua_const = main.constants[0].clone();
         assert_eq!(lua_const.const_type.0, 4);
-        assert_eq!(lua_const.const_value, ConstantValue::ShortStr(ShortString { len: 4, content: vec![102, 111, 111], value: "foo".to_string() }));
+        assert_eq!(
+            lua_const.const_value,
+            ConstantValue::ShortStr(ShortString {
+                len: 4,
+                content: vec![102, 111, 111],
+                value: "foo".to_string()
+            })
+        );
         // Upvalue
         assert_eq!(main.upvalues.len(), 1);
         assert_eq!(main.upvalues[0], UpValue { instack: 1, idx: 0 });
