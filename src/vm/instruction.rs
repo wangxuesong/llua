@@ -79,10 +79,9 @@ impl Instruction for u32 {
             OP_LOADK => {
                 dbg!(self.opname());
                 let (mut a, bx) = self.a_bx();
-                // a += 1;
 
-                l.get_const(bx);
-                l.set_value(a);
+                let v = l.get_const(bx);
+                l.set_value(a, v);
             }
             OP_ADD => {
                 dbg!(self.opname());
@@ -90,11 +89,9 @@ impl Instruction for u32 {
                 if let LuaValue::Integer(b_value) = l.get_rk(b) {
                     if let LuaValue::Integer(c_value) = l.get_rk(c) {
                         let add = b_value + c_value;
-                        l.stack.push(LuaValue::Integer(add));
-                        l.set_value(a);
+                        l.set_value(a, LuaValue::Integer(add));
                     }
                 }
-                let c_value = l.get_rk(c);
             }
             OP_FORLOOP => {
                 dbg!(self.opname());

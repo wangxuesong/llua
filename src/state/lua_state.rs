@@ -37,7 +37,6 @@ impl LuaState {
                 unimplemented!()
             }
         };
-        self.stack.push(v.clone());
         v
     }
 
@@ -46,13 +45,11 @@ impl LuaState {
             self.get_const(index - 0xFF - 1)
         } else {
             let v = self.stack.stack[index as usize].clone();
-            self.stack.push(v.clone());
             v
         }
     }
 
-    pub fn set_value(&mut self, index: isize) {
-        let value = self.stack.pop();
+    pub fn set_value(&mut self, index: isize, value: LuaValue) {
         self.stack.set(index, value);
     }
 }

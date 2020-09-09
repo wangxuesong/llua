@@ -52,4 +52,27 @@ mod tests {
         };
         lua_vm_execute(&mut l, &mut Some(&mut cls))
     }
+
+    #[test]
+    fn local_var_test() {
+        let proto = read_chunk("local_var.out");
+        let index = proto.max_stack_size.clone() as isize;
+        let mut l = LuaState::new(proto);
+        l.set_top(&index);
+        let mut expect_index = 0;
+        let expect = vec![
+            (0, LuaValue::Integer(1)),
+            (1, LuaValue::Integer(2)),
+            (2, LuaValue::Integer(3)),
+            (3, LuaValue::Integer(3)),
+            (3, LuaValue::Integer(6)),
+        ];
+        let mut expect_fun = |l: &LuaState| {
+            dbg!("assert local variable");
+            let (i, v) = expect[expect_index].clone();
+            assert_eq!(l.stack.stack[i], v);
+            expect_index += 1;
+        };
+        lua_vm_execute(&mut l, &mut Some(&mut expect_fun));
+    }
 }
