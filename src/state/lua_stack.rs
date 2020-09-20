@@ -29,6 +29,10 @@ impl LuaStack {
         self.stack.pop().unwrap()
     }
 
+    pub fn get(&mut self, index: isize) -> LuaValue {
+        self.stack[index as usize].clone()
+    }
+
     pub fn set(&mut self, index: isize, value: LuaValue) {
         self.stack[index as usize] = value;
     }

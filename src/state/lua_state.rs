@@ -1,6 +1,8 @@
 use crate::chunk::binary::{Constant, ConstantValue, Prototype};
-use crate::state::{LuaStack, LuaValue};
+use crate::state::{LuaStack, LuaTable, LuaValue};
 use crate::vm::Instruction;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 pub struct LuaState {
     pub stack: LuaStack,
@@ -29,9 +31,10 @@ impl LuaState {
 
     pub fn get_const(&mut self, index: isize) -> LuaValue {
         let c = &self.proto.constants[index as usize];
-        let v = match c.const_value {
+        let v = match &c.const_value {
             ConstantValue::Nil => LuaValue::Nil,
-            ConstantValue::Integer(v) => LuaValue::Integer(v),
+            ConstantValue::Integer(v) => LuaValue::Integer(*v),
+            ConstantValue::ShortStr(v) => LuaValue::String(v.clone().value),
             _ => {
                 dbg!(&c.const_value);
                 unimplemented!()
@@ -47,6 +50,17 @@ impl LuaState {
             let v = self.stack.stack[index as usize].clone();
             v
         }
+    }
+
+    pub fn get_value(&mut self, index: isize) -> LuaValue {
+        self.stack.get(index)
+    }
+
+    pub fn create_table(&mut self, array_size: isize, hash_size: isize) -> LuaValue {
+        LuaValue::Table(Rc::new(RefCell::new(LuaTable::new(
+            array_size as usize,
+            hash_size as usize,
+        ))))
     }
 
     pub fn set_value(&mut self, index: isize, value: LuaValue) {

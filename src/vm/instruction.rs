@@ -1,5 +1,6 @@
 use super::opcodes::*;
 use crate::state::{LuaState, LuaValue};
+use nom::dbg_dmp;
 
 const MAXARG_BX: isize = (1 << 18) - 1;
 // 262143
@@ -83,6 +84,33 @@ impl Instruction for u32 {
                 let v = l.get_const(bx);
                 l.set_value(a, v);
             }
+            OP_GETTABLE => {
+                dbg!(self.opname());
+                let (a, b, c) = self.abc();
+                let value = l.get_value(b);
+                assert!(value.is_table());
+                if let LuaValue::Table(mut table) = value {
+                    let v = table.borrow().get(l.get_rk(c));
+                    l.set_value(a, v)
+                }
+            }
+            OP_SETTABLE => {
+                dbg!(self.opname());
+                let (a, b, c) = self.abc();
+                let value = l.get_value(a);
+                assert!(value.is_table());
+                if let LuaValue::Table(mut table) = value {
+                    for i in 1..=b {
+                        table.borrow_mut().set_hash(l.get_rk(b), l.get_rk(c));
+                    }
+                }
+            }
+            OP_NEWTABLE => {
+                dbg!(self.opname());
+                let (a, b, c) = self.abc();
+                let v = l.create_table(b, c);
+                l.set_value(a, v);
+            }
             OP_ADD => {
                 dbg!(self.opname());
                 let (a, b, c) = self.abc();
@@ -93,11 +121,17 @@ impl Instruction for u32 {
                     }
                 }
             }
-            OP_FORLOOP => {
+            OP_SETLIST => {
                 dbg!(self.opname());
-            }
-            OP_FORPREP => {
-                dbg!(self.opname());
+                let (a, b, c) = self.abc();
+                let last = (c - 1) * 50/* LFIELDS_PER_FLUSH */ + b;
+                let value = l.get_value(a);
+                assert!(value.is_table());
+                if let LuaValue::Table(mut table) = value {
+                    for i in 1..=b {
+                        table.borrow_mut().set_array(i, l.get_value(last - b + i))
+                    }
+                }
             }
             _ => {
                 dbg!(self.opname());
