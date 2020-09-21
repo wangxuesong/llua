@@ -77,6 +77,12 @@ impl Instruction for u32 {
 
     fn execute(self, l: &mut LuaState) {
         match self.opcode() {
+            OP_MOVE => {
+                dbg!(self.opname());
+                let (a, b, c) = self.abc();
+                let v = l.get_value(b);
+                l.set_value(a, v);
+            }
             OP_LOADK => {
                 dbg!(self.opname());
                 let (mut a, bx) = self.a_bx();
@@ -132,6 +138,12 @@ impl Instruction for u32 {
                         table.borrow_mut().set_array(i, l.get_value(last - b + i))
                     }
                 }
+            }
+            OP_CLOSURE => {
+                dbg!(self.opname());
+                let (a, b) = self.a_bx();
+                let proto = l.load_proto(b);
+                l.set_value(a, proto);
             }
             _ => {
                 dbg!(self.opname());

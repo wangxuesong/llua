@@ -56,7 +56,8 @@ mod tests {
             assert_eq!(l.stack.stack[0], expect[expect_index]);
             expect_index += 1;
         };
-        lua_vm_execute(&mut l, &mut Some(&mut cls))
+        lua_vm_execute(&mut l, &mut Some(&mut cls));
+        assert_eq!(expect_index, expect.len());
     }
 
     #[test]
@@ -86,6 +87,7 @@ mod tests {
             expect_index += 1;
         };
         lua_vm_execute(&mut l, &mut Some(&mut expect_fun));
+        assert_eq!(expect_index, expect.len());
     }
 
     #[test]
@@ -158,5 +160,56 @@ mod tests {
             expect_index += 1;
         };
         lua_vm_execute(&mut l, &mut Some(&mut expect_fun));
+        assert_eq!(expect_index, expect_closure.len());
+    }
+
+    #[test]
+    fn function_test() {
+        let proto = read_chunk("func.out");
+        let index = proto.max_stack_size.clone() as isize;
+        let mut l = LuaState::new(proto);
+        l.set_top(&index);
+        let mut expect_index = 0;
+        let mut expect_closure: Vec<Box<dyn FnMut(&LuaState)>> = Vec::new();
+        // 1	[9] 	CLOSURE  	0 0	; 0x7fd20d4063c0
+        expect_closure.push(Box::new(|l: &LuaState| {
+            dbg!("CLOSURE  	0 0");
+            if let LuaValue::Function(_) = l.stack.stack[0] {
+            } else {
+                assert!(false, "expect function")
+            }
+        }));
+        // 2	[11]	MOVE     	1 0
+        expect_closure.push(Box::new(|l: &LuaState| {
+            dbg!("MOVE     	1 0");
+            if let LuaValue::Function(_) = l.stack.stack[1] {
+            } else {
+                assert!(false, "expect function")
+            }
+        }));
+        // 3	[11]	LOADK    	2 -1	; 11
+        expect_closure.push(Box::new(|l: &LuaState| {
+            dbg!("LOADK    	2 -1	; 2");
+            assert_eq!(l.stack.stack[2], LuaValue::Integer(11))
+        }));
+        // 4	[11]	LOADK    	3 -2	; 3
+        expect_closure.push(Box::new(|l: &LuaState| {
+            dbg!("LOADK    	3 -2	; 3");
+            assert_eq!(l.stack.stack[3], LuaValue::Integer(3))
+        }));
+        // 5	[11]	CALL     	1 3 2
+        expect_closure.push(Box::new(|l: &LuaState| {
+            dbg!("CALL     	1 3 2");
+            assert_eq!(l.stack.stack[1], LuaValue::Integer(14))
+        }));
+        // 6	[11]	RETURN   	0 1
+
+        let mut expect_fun = |l: &LuaState| {
+            let func = &mut expect_closure[expect_index];
+            func(l);
+            expect_index += 1;
+        };
+        lua_vm_execute(&mut l, &mut Some(&mut expect_fun));
+        assert_eq!(expect_index, 1);
     }
 }

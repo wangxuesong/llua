@@ -1,5 +1,5 @@
 use crate::chunk::binary::{Constant, ConstantValue, Prototype};
-use crate::state::{LuaStack, LuaTable, LuaValue};
+use crate::state::{LuaFunction, LuaStack, LuaTable, LuaValue};
 use crate::vm::Instruction;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -7,7 +7,7 @@ use std::rc::Rc;
 pub struct LuaState {
     pub stack: LuaStack,
     pc: isize,
-    pub proto: Prototype,
+    pub proto: Rc<Prototype>,
 }
 
 impl LuaState {
@@ -15,7 +15,7 @@ impl LuaState {
         LuaState {
             stack: LuaStack::new(30),
             pc: 0,
-            proto,
+            proto: Rc::new(proto),
         }
     }
 
@@ -54,6 +54,11 @@ impl LuaState {
 
     pub fn get_value(&mut self, index: isize) -> LuaValue {
         self.stack.get(index)
+    }
+
+    pub fn load_proto(&self, index: isize) -> LuaValue {
+        let proto = self.proto.prototypes[index as usize].clone();
+        LuaValue::Function(Rc::new(LuaFunction::new(proto)))
     }
 
     pub fn create_table(&mut self, array_size: isize, hash_size: isize) -> LuaValue {

@@ -1,6 +1,7 @@
 use nom;
 use nom::number::streaming::{le_f64, le_i64};
 use nom_derive::Nom;
+use std::rc::Rc;
 
 // "\x1bLua"
 pub const LUA_SIGNATURE: [u8; 4] = [0x1b, 0x4c, 0x75, 0x61];
@@ -62,7 +63,7 @@ pub struct Prototype {
     pub code: Vec<u32>,
     pub constants: Vec<Constant>,
     pub upvalues: Vec<UpValue>,
-    pub prototypes: Vec<Prototype>,
+    pub prototypes: Vec<Rc<Prototype>>,
     pub line_info: Vec<u32>,
     pub loc_vars: Vec<LocVar>,
     pub upvalue_names: Vec<UpValueName>,
@@ -95,7 +96,13 @@ impl Prototype {
         let (i, upvalue_length) = nom::number::streaming::le_u32(i)?;
         let (i, upvalues) = nom::multi::count(UpValue::parse, { upvalue_length } as usize)(i)?;
         let (i, proto_length) = nom::number::streaming::le_u32(i)?;
-        let (i, prototypes) = nom::multi::count(Prototype::parse, { proto_length } as usize)(i)?;
+        let (i, prototypes) = nom::multi::count(
+            |x| {
+                let (data, proto) = Prototype::parse(x)?;
+                Ok((data, Rc::new(proto)))
+            },
+            { proto_length } as usize,
+        )(i)?;
         let (i, line_length) = nom::number::streaming::le_u32(i)?;
         let (i, line_info) =
             nom::multi::count(nom::number::streaming::le_u32, { line_length } as usize)(i)?;
@@ -263,7 +270,7 @@ mod tests {
             ConstantValue::ShortStr(ShortString {
                 len: 4,
                 content: vec![102, 111, 111],
-                value: "foo".to_string()
+                value: "foo".to_string(),
             })
         );
         // Upvalue
