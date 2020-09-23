@@ -4,18 +4,51 @@ use crate::vm::Instruction;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+pub struct CallInfo {
+    func: LuaFunction,
+    pc: usize,
+}
+
+impl CallInfo {
+    pub fn new(proto: Prototype) -> Self {
+        CallInfo {
+            func: LuaFunction::new(Rc::new(proto)),
+            pc: 0,
+        }
+    }
+
+    pub fn fetch(&mut self) -> u32 {
+        let inst = self.func.proto.code[self.pc];
+        self.pc += 1;
+        inst
+    }
+
+    pub fn get_const(&self, index: isize) -> &Constant {
+        &self.func.proto.constants[index as usize]
+    }
+
+    pub fn load_proto(&self, index: isize) -> &Rc<Prototype> {
+        &self.func.proto.prototypes[index as usize]
+    }
+}
+
 pub struct LuaState {
     pub stack: LuaStack,
-    pc: isize,
-    pub proto: Rc<Prototype>,
+    top: isize,
+    base: isize,
+    base_ci: Vec<Rc<RefCell<CallInfo>>>,
+    ci: isize,
 }
 
 impl LuaState {
     pub fn new(proto: Prototype) -> LuaState {
+        let ci = CallInfo::new(proto);
         LuaState {
             stack: LuaStack::new(30),
-            pc: 0,
-            proto: Rc::new(proto),
+            top: 0,
+            base: 0,
+            base_ci: vec![Rc::new(RefCell::new(ci))],
+            ci: 0,
         }
     }
 
@@ -24,13 +57,14 @@ impl LuaState {
     }
 
     pub fn fetch(&mut self) -> u32 {
-        let inst = self.proto.code[self.pc as usize];
-        self.pc += 1;
-        inst
+        self.base_ci[self.ci as usize].borrow_mut().fetch()
     }
 
     pub fn get_const(&mut self, index: isize) -> LuaValue {
-        let c = &self.proto.constants[index as usize];
+        let c = self.base_ci[self.ci as usize]
+            .borrow()
+            .get_const(index)
+            .clone();
         let v = match &c.const_value {
             ConstantValue::Nil => LuaValue::Nil,
             ConstantValue::Integer(v) => LuaValue::Integer(*v),
@@ -57,7 +91,10 @@ impl LuaState {
     }
 
     pub fn load_proto(&self, index: isize) -> LuaValue {
-        let proto = self.proto.prototypes[index as usize].clone();
+        let proto = self.base_ci[self.ci as usize]
+            .borrow()
+            .load_proto(index)
+            .clone();
         LuaValue::Function(Rc::new(LuaFunction::new(proto)))
     }
 

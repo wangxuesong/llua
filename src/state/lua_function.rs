@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub struct LuaFunction {
-    proto: Rc<Prototype>,
+    pub proto: Rc<Prototype>,
 }
 
 impl PartialEq for LuaFunction {
