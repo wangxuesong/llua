@@ -8,5 +8,10 @@ local function add(l, r)
     return l + r
 end
 
---local r = add(11, 03)
+--local function nop()
+--    return 1
+--end
+
+local r = add(11, 03)
+--nop()
 --local a = r + 1

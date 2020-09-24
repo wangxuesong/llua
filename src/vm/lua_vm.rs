@@ -4,14 +4,17 @@ use crate::vm::Instruction;
 
 pub fn lua_vm_execute(l: &mut LuaState, func: &mut Option<&mut dyn FnMut(&LuaState)>) {
     loop {
-        let inst = l.fetch();
-        if inst.opcode() == OP_RETURN {
-            break;
-        }
-        inst.execute(l);
-        match func {
-            Some(f) => f(l),
-            None => (),
+        match l.fetch() {
+            Some(inst) => {
+                inst.execute(l);
+                match func {
+                    Some(f) => f(l),
+                    None => (),
+                }
+            }
+            None => {
+                break;
+            }
         }
     }
 }
@@ -26,7 +29,6 @@ mod tests {
     use std::rc::Rc;
 
     fn read_chunk(name: &str) -> Prototype {
-        // let name = "foo.out";
         let content = read(name).unwrap();
         let parse_result = Chunk::parse(content.as_slice());
         assert!(parse_result.is_ok());
@@ -49,10 +51,10 @@ mod tests {
             LuaValue::Integer(0),
             LuaValue::Integer(1),
             LuaValue::Integer(3),
+            LuaValue::Integer(3),
         ];
         let mut cls = |l: &LuaState| {
             dbg!("hello");
-            // assert_eq!(l.stack.stack.len(), 2);
             assert_eq!(l.stack.stack[0], expect[expect_index]);
             expect_index += 1;
         };
@@ -78,6 +80,7 @@ mod tests {
             (1, LuaValue::Integer(2)),
             (2, LuaValue::Integer(3)),
             (3, LuaValue::Integer(3)),
+            (3, LuaValue::Integer(6)),
             (3, LuaValue::Integer(6)),
         ];
         let mut expect_fun = |l: &LuaState| {
@@ -151,12 +154,13 @@ mod tests {
             assert_eq!(l.stack.stack[2], LuaValue::Integer(88));
         }));
         // 9	[2]	RETURN   	0 1
+        expect_closure.push(Box::new(|l: &LuaState| {
+            assert_eq!(l.stack.stack[2], LuaValue::Integer(88));
+        }));
         let mut expect_fun = |l: &LuaState| {
             dbg!("assert table");
-            // let (i, v) = expect[expect_index].clone();
             let func = &mut expect_closure[expect_index];
             func(l);
-            // assert_eq!(l.stack.stack[i], v);
             expect_index += 1;
         };
         lua_vm_execute(&mut l, &mut Some(&mut expect_fun));
@@ -189,7 +193,7 @@ mod tests {
         }));
         // 3	[11]	LOADK    	2 -1	; 11
         expect_closure.push(Box::new(|l: &LuaState| {
-            dbg!("LOADK    	2 -1	; 2");
+            dbg!("LOADK    	2 -1	; 11");
             assert_eq!(l.stack.stack[2], LuaValue::Integer(11))
         }));
         // 4	[11]	LOADK    	3 -2	; 3
@@ -200,9 +204,28 @@ mod tests {
         // 5	[11]	CALL     	1 3 2
         expect_closure.push(Box::new(|l: &LuaState| {
             dbg!("CALL     	1 3 2");
-            assert_eq!(l.stack.stack[1], LuaValue::Integer(14))
+            if let LuaValue::Function(_) = l.stack.stack[1] {
+            } else {
+                assert!(false, "expect function")
+            }
+            assert_eq!(l.stack.stack[2], LuaValue::Integer(11));
+            assert_eq!(l.stack.stack[3], LuaValue::Integer(3));
+        }));
+        // 1	[8]	ADD      	2 0 1
+        expect_closure.push(Box::new(|l: &LuaState| {
+            dbg!("ADD      	2 0 1");
+            assert_eq!(l.stack.stack[4], LuaValue::Integer(14))
+        }));
+        // 2	[8]	RETURN   	2 2
+        expect_closure.push(Box::new(|l: &LuaState| {
+            dbg!("RETURN   	2 2");
+            assert_eq!(l.stack.stack[4], LuaValue::Integer(14))
         }));
         // 6	[11]	RETURN   	0 1
+        expect_closure.push(Box::new(|l: &LuaState| {
+            dbg!("RETURN   	0 1");
+            assert_eq!(l.stack.stack[4], LuaValue::Integer(14))
+        }));
 
         let mut expect_fun = |l: &LuaState| {
             let func = &mut expect_closure[expect_index];
@@ -210,6 +233,6 @@ mod tests {
             expect_index += 1;
         };
         lua_vm_execute(&mut l, &mut Some(&mut expect_fun));
-        assert_eq!(expect_index, 1);
+        assert_eq!(expect_index, 8);
     }
 }

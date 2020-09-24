@@ -127,6 +127,18 @@ impl Instruction for u32 {
                     }
                 }
             }
+            OP_CALL => {
+                dbg!(self.opname());
+                let (a, b, c) = self.abc();
+                if let LuaValue::Function(func) = l.get_value(a) {
+                    l.precall(a, b, c);
+                }
+            }
+            OP_RETURN => {
+                dbg!(self.opname());
+                let (a, b, c) = self.abc();
+                l.postcall(a, b, c);
+            }
             OP_SETLIST => {
                 dbg!(self.opname());
                 let (a, b, c) = self.abc();

@@ -7,20 +7,29 @@ use std::rc::Rc;
 pub struct CallInfo {
     func: LuaFunction,
     pc: usize,
+    pub base: isize,
+    pub top: isize,
 }
 
 impl CallInfo {
-    pub fn new(proto: Prototype) -> Self {
+    pub fn new(proto: Rc<Prototype>, base: isize) -> Self {
+        let top = base + proto.max_stack_size as isize;
         CallInfo {
-            func: LuaFunction::new(Rc::new(proto)),
+            func: LuaFunction::new((proto)),
             pc: 0,
+            base,
+            top,
         }
     }
 
-    pub fn fetch(&mut self) -> u32 {
-        let inst = self.func.proto.code[self.pc];
-        self.pc += 1;
-        inst
+    pub fn fetch(&mut self) -> Option<u32> {
+        if self.pc < self.func.proto.code.len() {
+            let inst = self.func.proto.code[self.pc];
+            self.pc += 1;
+            Some(inst)
+        } else {
+            None
+        }
     }
 
     pub fn get_const(&self, index: isize) -> &Constant {
@@ -29,6 +38,14 @@ impl CallInfo {
 
     pub fn load_proto(&self, index: isize) -> &Rc<Prototype> {
         &self.func.proto.prototypes[index as usize]
+    }
+
+    pub fn get_base(&self) -> isize {
+        self.base.clone()
+    }
+
+    pub fn get_top(&self) -> isize {
+        self.top.clone()
     }
 }
 
@@ -42,7 +59,7 @@ pub struct LuaState {
 
 impl LuaState {
     pub fn new(proto: Prototype) -> LuaState {
-        let ci = CallInfo::new(proto);
+        let ci = CallInfo::new(Rc::new(proto), 0);
         LuaState {
             stack: LuaStack::new(30),
             top: 0,
@@ -56,7 +73,10 @@ impl LuaState {
         self.stack.set_top(index)
     }
 
-    pub fn fetch(&mut self) -> u32 {
+    pub fn fetch(&mut self) -> Option<u32> {
+        if self.base_ci.len() == 0 {
+            return None;
+        }
         self.base_ci[self.ci as usize].borrow_mut().fetch()
     }
 
@@ -81,7 +101,7 @@ impl LuaState {
         if index > 0xFF {
             self.get_const(index - 0xFF - 1)
         } else {
-            let v = self.stack.stack[index as usize].clone();
+            let v = self.stack.stack[(self.base + index) as usize].clone();
             v
         }
     }
@@ -106,6 +126,24 @@ impl LuaState {
     }
 
     pub fn set_value(&mut self, index: isize, value: LuaValue) {
-        self.stack.set(index, value);
+        self.stack.set(self.base + index, value);
+    }
+
+    pub fn precall(&mut self, a: isize, b: isize, c: isize) {
+        if let LuaValue::Function(func) = self.get_value(a) {
+            let proto = func.proto.clone();
+            let ci = CallInfo::new(proto.clone(), a + 1);
+            self.base = ci.get_base();
+            self.top = ci.get_top();
+            let top = self.top;
+            self.set_top(&top);
+            self.base_ci.push(Rc::new(RefCell::new(ci)));
+            self.ci += 1;
+        }
+    }
+
+    pub fn postcall(&mut self, a: isize, b: isize, c: isize) {
+        let ci = self.base_ci.pop().unwrap();
+        self.ci -= 1;
     }
 }
