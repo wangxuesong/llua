@@ -1,6 +1,5 @@
 use super::opcodes::*;
 use crate::state::{LuaState, LuaValue};
-use nom::dbg_dmp;
 
 const MAXARG_BX: isize = (1 << 18) - 1;
 // 262143
@@ -79,13 +78,13 @@ impl Instruction for u32 {
         match self.opcode() {
             OP_MOVE => {
                 dbg!(self.opname());
-                let (a, b, c) = self.abc();
+                let (a, b, _) = self.abc();
                 let v = l.get_value(b);
                 l.set_value(a, v);
             }
             OP_LOADK => {
                 dbg!(self.opname());
-                let (mut a, bx) = self.a_bx();
+                let (a, bx) = self.a_bx();
 
                 let v = l.get_const(bx);
                 l.set_value(a, v);
@@ -95,7 +94,7 @@ impl Instruction for u32 {
                 let (a, b, c) = self.abc();
                 let value = l.get_value(b);
                 assert!(value.is_table());
-                if let LuaValue::Table(mut table) = value {
+                if let LuaValue::Table(table) = value {
                     let v = table.borrow().get(l.get_rk(c));
                     l.set_value(a, v)
                 }
@@ -105,8 +104,8 @@ impl Instruction for u32 {
                 let (a, b, c) = self.abc();
                 let value = l.get_value(a);
                 assert!(value.is_table());
-                if let LuaValue::Table(mut table) = value {
-                    for i in 1..=b {
+                if let LuaValue::Table(table) = value {
+                    for _i in 1..=b {
                         table.borrow_mut().set_hash(l.get_rk(b), l.get_rk(c));
                     }
                 }
@@ -130,7 +129,7 @@ impl Instruction for u32 {
             OP_CALL => {
                 dbg!(self.opname());
                 let (a, b, c) = self.abc();
-                if let LuaValue::Function(func) = l.get_value(a) {
+                if let LuaValue::Function(_func) = l.get_value(a) {
                     l.precall(a, b, c);
                 }
             }
@@ -145,7 +144,7 @@ impl Instruction for u32 {
                 let last = (c - 1) * 50/* LFIELDS_PER_FLUSH */ + b;
                 let value = l.get_value(a);
                 assert!(value.is_table());
-                if let LuaValue::Table(mut table) = value {
+                if let LuaValue::Table(table) = value {
                     for i in 1..=b {
                         table.borrow_mut().set_array(i, l.get_value(last - b + i))
                     }

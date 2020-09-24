@@ -13,11 +13,7 @@ impl LuaStack {
         }
     }
 
-    pub fn set_top(&mut self, index: &isize) {
-        for i in 0..*index {
-            // self.stack.push(LuaValue::Nil);
-        }
-    }
+    pub fn set_top(&mut self, _index: &isize) {}
 
     pub fn push(&mut self, value: LuaValue) {
         self.stack.push(value);

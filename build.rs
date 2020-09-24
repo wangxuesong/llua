@@ -1,6 +1,4 @@
-use std::env;
 use std::process::Command;
-use std::fs;
 
 fn main() {
     let lua_files = vec!["func", "local_var", "sample", "table"];

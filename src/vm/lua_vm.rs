@@ -1,5 +1,4 @@
 use crate::state::LuaState;
-use crate::vm::opcodes::OP_RETURN;
 use crate::vm::Instruction;
 
 pub fn lua_vm_execute(l: &mut LuaState, func: &mut Option<&mut dyn FnMut(&LuaState)>) {

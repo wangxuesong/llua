@@ -9,13 +9,13 @@ pub struct LuaFunction {
 }
 
 impl PartialEq for LuaFunction {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         unimplemented!()
     }
 }
 
 impl Hash for LuaFunction {
-    fn hash<H: Hasher>(&self, state: &mut H) {
+    fn hash<H: Hasher>(&self, _state: &mut H) {
         unimplemented!()
     }
 }

@@ -1,6 +1,5 @@
 use crate::chunk::binary::{Constant, ConstantValue, Prototype};
 use crate::state::{LuaFunction, LuaStack, LuaTable, LuaValue};
-use crate::vm::Instruction;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -15,7 +14,7 @@ impl CallInfo {
     pub fn new(proto: Rc<Prototype>, base: isize) -> Self {
         let top = base + proto.max_stack_size as isize;
         CallInfo {
-            func: LuaFunction::new((proto)),
+            func: LuaFunction::new(proto),
             pc: 0,
             base,
             top,
@@ -129,7 +128,7 @@ impl LuaState {
         self.stack.set(self.base + index, value);
     }
 
-    pub fn precall(&mut self, a: isize, b: isize, c: isize) {
+    pub fn precall(&mut self, a: isize, _b: isize, _c: isize) {
         if let LuaValue::Function(func) = self.get_value(a) {
             let proto = func.proto.clone();
             let ci = CallInfo::new(proto.clone(), a + 1);
@@ -142,8 +141,8 @@ impl LuaState {
         }
     }
 
-    pub fn postcall(&mut self, a: isize, b: isize, c: isize) {
-        let ci = self.base_ci.pop().unwrap();
+    pub fn postcall(&mut self, _a: isize, _b: isize, _c: isize) {
+        let _ci = self.base_ci.pop().unwrap();
         self.ci -= 1;
     }
 }
