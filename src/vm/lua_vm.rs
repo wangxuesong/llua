@@ -177,7 +177,7 @@ mod tests {
         // 1	[9] 	CLOSURE  	0 0	; 0x7fd20d4063c0
         expect_closure.push(Box::new(|l: &LuaState| {
             dbg!("CLOSURE  	0 0");
-            if let LuaValue::Function(_) = l.stack.stack[0] {
+            if let LuaValue::Closure(_) = l.stack.stack[0] {
             } else {
                 assert!(false, "expect function")
             }
@@ -185,7 +185,7 @@ mod tests {
         // 2	[11]	MOVE     	1 0
         expect_closure.push(Box::new(|l: &LuaState| {
             dbg!("MOVE     	1 0");
-            if let LuaValue::Function(_) = l.stack.stack[1] {
+            if let LuaValue::Closure(_) = l.stack.stack[1] {
             } else {
                 assert!(false, "expect function")
             }
@@ -203,7 +203,7 @@ mod tests {
         // 5	[11]	CALL     	1 3 2
         expect_closure.push(Box::new(|l: &LuaState| {
             dbg!("CALL     	1 3 2");
-            if let LuaValue::Function(_) = l.stack.stack[1] {
+            if let LuaValue::Closure(_) = l.stack.stack[1] {
             } else {
                 assert!(false, "expect function")
             }

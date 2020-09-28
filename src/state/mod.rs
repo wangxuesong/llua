@@ -4,7 +4,7 @@ mod lua_state;
 mod lua_table;
 mod lua_value;
 
-pub use lua_function::LuaFunction;
+pub use lua_function::LuaClosure;
 pub use lua_stack::LuaStack;
 pub use lua_state::LuaState;
 pub use lua_table::LuaTable;

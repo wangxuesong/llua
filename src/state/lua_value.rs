@@ -1,4 +1,4 @@
-use crate::state::{LuaFunction, LuaTable};
+use crate::state::{LuaClosure, LuaTable};
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -11,7 +11,7 @@ pub enum LuaValue {
     Number(f64),
     String(String),
     Table(Rc<RefCell<LuaTable>>),
-    Function(Rc<LuaFunction>),
+    Closure(Rc<LuaClosure>),
 }
 
 impl Eq for LuaValue {}
@@ -25,7 +25,7 @@ impl Hash for LuaValue {
             LuaValue::Number(v) => v.to_be_bytes().hash(state),
             LuaValue::String(v) => v.hash(state),
             LuaValue::Table(v) => v.borrow_mut().hash(state),
-            LuaValue::Function(v) => v.hash(state),
+            LuaValue::Closure(v) => v.hash(state),
         }
     }
 }
