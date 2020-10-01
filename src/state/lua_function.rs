@@ -1,4 +1,5 @@
 use crate::chunk::binary::Prototype;
+use crate::state::LuaValue;
 use nom::lib::std::hash::Hash;
 use std::hash::Hasher;
 use std::rc::Rc;
@@ -6,6 +7,7 @@ use std::rc::Rc;
 #[derive(Clone, Debug)]
 pub struct LuaClosure {
     pub proto: Rc<Prototype>,
+    pub upvalues: Vec<LuaValue>,
 }
 
 impl PartialEq for LuaClosure {
@@ -22,6 +24,9 @@ impl Hash for LuaClosure {
 
 impl LuaClosure {
     pub fn new(proto: Rc<Prototype>) -> LuaClosure {
-        LuaClosure { proto }
+        LuaClosure {
+            proto,
+            upvalues: Vec::new(),
+        }
     }
 }

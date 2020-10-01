@@ -89,6 +89,11 @@ impl Instruction for u32 {
                 let v = l.get_const(bx);
                 l.set_value(a, v);
             }
+            OP_GETUPVAL => {
+                dbg!(self.opname());
+                let (a, b, _) = self.abc();
+                l.set_value(a, l.get_upvalue(b));
+            }
             OP_GETTABLE => {
                 dbg!(self.opname());
                 let (a, b, c) = self.abc();

@@ -1,7 +1,7 @@
 use std::process::Command;
 
 fn main() {
-    let lua_files = vec!["func", "local_var", "sample", "table"];
+    let lua_files = vec!["func", "local_var", "sample", "table", "upvalue"];
     for file in lua_files {
         Command::new("luac")
             .args(&["-o"])

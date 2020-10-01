@@ -13,7 +13,14 @@ impl LuaStack {
         }
     }
 
-    pub fn set_top(&mut self, _index: &isize) {}
+    pub fn set_top(&mut self, _index: &isize) {
+        if *_index as usize >= self.stack.len() {
+            let size = *_index as usize - self.stack.len();
+            for _ in 0..size {
+                self.stack.push(LuaValue::Nil);
+            }
+        }
+    }
 
     pub fn push(&mut self, value: LuaValue) {
         self.stack.push(value);
@@ -25,11 +32,11 @@ impl LuaStack {
         self.stack.pop().unwrap()
     }
 
-    pub fn get(&mut self, index: isize) -> LuaValue {
+    pub fn get(&self, index: isize) -> LuaValue {
         self.stack[index as usize].clone()
     }
 
     pub fn set(&mut self, index: isize, value: LuaValue) {
-        self.stack.insert(index as usize, value);
+        self.stack[index as usize] = value;
     }
 }

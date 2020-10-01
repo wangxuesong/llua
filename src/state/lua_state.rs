@@ -4,17 +4,17 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 pub struct CallInfo {
-    func: LuaClosure,
+    func: Rc<LuaClosure>,
     pc: usize,
     pub base: isize,
     pub top: isize,
 }
 
 impl CallInfo {
-    pub fn new(proto: Rc<Prototype>, base: isize) -> Self {
-        let top = base + proto.max_stack_size as isize;
+    pub fn new(proto: Rc<LuaClosure>, base: isize) -> Self {
+        let top = base + proto.proto.max_stack_size as isize;
         CallInfo {
-            func: LuaClosure::new(proto),
+            func: proto,
             pc: 0,
             base,
             top,
@@ -58,7 +58,8 @@ pub struct LuaState {
 
 impl LuaState {
     pub fn new(proto: Prototype) -> LuaState {
-        let ci = CallInfo::new(Rc::new(proto), 0);
+        let closure = LuaClosure::new(Rc::new(proto));
+        let ci = CallInfo::new(Rc::new(closure), 0);
         LuaState {
             stack: LuaStack::new(30),
             top: 0,
@@ -105,7 +106,7 @@ impl LuaState {
         }
     }
 
-    pub fn get_value(&mut self, index: isize) -> LuaValue {
+    pub fn get_value(&self, index: isize) -> LuaValue {
         self.stack.get(index)
     }
 
@@ -114,7 +115,18 @@ impl LuaState {
             .borrow()
             .load_proto(index)
             .clone();
-        LuaValue::Closure(Rc::new(LuaClosure::new(proto)))
+        let mut closure = LuaClosure::new(proto.clone());
+        let n = proto.upvalues.len();
+        if n > 0 {
+            for i in 0..n {
+                if proto.upvalues[i].instack == 1 {
+                    let v = self.get_value(self.base + proto.upvalues[i].idx.clone() as isize);
+                    closure.upvalues.push(v);
+                }
+            }
+        }
+
+        LuaValue::Closure(Rc::new(closure))
     }
 
     pub fn create_table(&mut self, array_size: isize, hash_size: isize) -> LuaValue {
@@ -128,10 +140,15 @@ impl LuaState {
         self.stack.set(self.base + index, value);
     }
 
+    pub fn get_upvalue(&self, index: isize) -> LuaValue {
+        let ci = self.base_ci[self.ci as usize].clone();
+        let x = ci.borrow().func.upvalues[index as usize].clone();
+        x
+    }
+
     pub fn precall(&mut self, a: isize, _b: isize, _c: isize) {
         if let LuaValue::Closure(func) = self.get_value(a) {
-            let proto = func.proto.clone();
-            let ci = CallInfo::new(proto.clone(), a + 1);
+            let ci = CallInfo::new(func.clone(), a + 1);
             self.base = ci.get_base();
             self.top = ci.get_top();
             let top = self.top;
@@ -141,8 +158,21 @@ impl LuaState {
         }
     }
 
-    pub fn postcall(&mut self, _a: isize, _b: isize, _c: isize) {
+    pub fn postcall(&mut self, a: isize, b: isize, _c: isize) {
         let _ci = self.base_ci.pop().unwrap();
         self.ci -= 1;
+
+        if self.ci >= 0 {
+            self.base = self.base_ci[self.ci as usize].borrow().base;
+        }
+
+        if b > 1 {
+            let base = _ci.borrow().base;
+            let mut index = base - 1;
+            for i in a..b - 1 + a {
+                self.set_value(index, self.get_value(i + base));
+                index += 1;
+            }
+        }
     }
 }
