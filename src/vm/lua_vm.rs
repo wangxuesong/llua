@@ -1,5 +1,7 @@
+use crate::chunk::binary::{Chunk, Prototype};
 use crate::state::LuaState;
 use crate::vm::Instruction;
+use std::fs::read;
 
 pub fn lua_vm_execute(l: &mut LuaState, func: &mut Option<&mut dyn FnMut(&LuaState)>) {
     loop {
@@ -18,22 +20,20 @@ pub fn lua_vm_execute(l: &mut LuaState, func: &mut Option<&mut dyn FnMut(&LuaSta
     }
 }
 
+pub fn read_chunk(name: &str) -> Prototype {
+    let content = read(name).unwrap();
+    let parse_result = Chunk::parse(content.as_slice());
+    assert!(parse_result.is_ok());
+    let chunk: Chunk = parse_result.unwrap().1;
+    chunk.main
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::chunk::binary::{Chunk, Prototype};
     use crate::state::{LuaState, LuaTable, LuaValue};
-    use crate::vm::lua_vm::lua_vm_execute;
+    use crate::vm::lua_vm::{lua_vm_execute, read_chunk};
     use std::cell::RefCell;
-    use std::fs::read;
     use std::rc::Rc;
-
-    fn read_chunk(name: &str) -> Prototype {
-        let content = read(name).unwrap();
-        let parse_result = Chunk::parse(content.as_slice());
-        assert!(parse_result.is_ok());
-        let chunk: Chunk = parse_result.unwrap().1;
-        chunk.main
-    }
 
     #[test]
     fn execute_test() {

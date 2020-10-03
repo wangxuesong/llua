@@ -1,3 +1,4 @@
+use crate::chunk::binary::Prototype;
 use crate::state::{LuaClosure, LuaTable};
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
@@ -31,6 +32,10 @@ impl Hash for LuaValue {
 }
 
 impl LuaValue {
+    pub fn new_lua_closure(proto: Prototype) -> LuaValue {
+        LuaValue::Closure(Rc::new(LuaClosure::new(Rc::new(proto))))
+    }
+
     pub fn is_table(&self) -> bool {
         match self {
             LuaValue::Table(_) => true,

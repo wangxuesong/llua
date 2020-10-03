@@ -1,5 +1,7 @@
+use crate::api::luaState;
 use crate::chunk::binary::{Constant, ConstantValue, Prototype};
 use crate::state::{LuaClosure, LuaStack, LuaTable, LuaValue};
+use crate::vm::Instruction;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -66,6 +68,16 @@ impl LuaState {
             base: 0,
             base_ci: vec![Rc::new(RefCell::new(ci))],
             ci: 0,
+        }
+    }
+
+    pub fn init() -> LuaState {
+        LuaState {
+            stack: LuaStack::new(30),
+            top: 0,
+            base: 0,
+            base_ci: vec![],
+            ci: -1,
         }
     }
 
@@ -173,6 +185,56 @@ impl LuaState {
                 self.set_value(index, self.get_value(i + base));
                 index += 1;
             }
+        }
+    }
+}
+
+impl luaState for LuaState {
+    fn get_top(&self) -> isize {
+        self.stack.get_top()
+    }
+
+    fn push(&mut self, value: LuaValue) {
+        self.stack.push(value)
+    }
+
+    fn call(&mut self, nargs: isize, nresults: isize) {
+        let index = self.get_top() - nargs;
+        if let LuaValue::Closure(func) = self.get_value(index) {
+            let ci = CallInfo::new(func.clone(), index + 1);
+            self.base = ci.get_base();
+            self.stack.set_size(ci.get_top());
+            self.base_ci.push(Rc::new(RefCell::new(ci)));
+            self.ci += 1;
+
+            loop {
+                match self.fetch() {
+                    Some(inst) => {
+                        inst.execute(self);
+                    }
+                    None => {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    fn is_integer(&self, index: isize) -> bool {
+        let v = &self.stack.get(index);
+        if let LuaValue::Integer(_) = *v {
+            true
+        } else {
+            false
+        }
+    }
+
+    fn is_function(&self, index: isize) -> bool {
+        let v = &self.stack.get(index);
+        if let LuaValue::Closure(_) = *v {
+            true
+        } else {
+            false
         }
     }
 }

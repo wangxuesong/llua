@@ -7,16 +7,27 @@ pub struct LuaStack {
 
 impl LuaStack {
     pub fn new(size: usize) -> LuaStack {
-        LuaStack {
-            stack: Vec::with_capacity(size),
-            top: 0,
-        }
+        let mut stack = Vec::with_capacity(size);
+        stack.push(LuaValue::Nil);
+        LuaStack { stack, top: 0 }
+    }
+
+    pub fn get_top(&self) -> isize {
+        self.top
     }
 
     pub fn set_top(&mut self, _index: &isize) {
         if *_index as usize >= self.stack.len() {
             let size = *_index as usize - self.stack.len();
             for _ in 0..size {
+                self.stack.push(LuaValue::Nil);
+            }
+        }
+    }
+
+    pub fn set_size(&mut self, index: isize) {
+        if index > self.top {
+            for _ in self.top..index {
                 self.stack.push(LuaValue::Nil);
             }
         }
