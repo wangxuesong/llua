@@ -1,7 +1,7 @@
 pub mod lua_state;
 
 pub use self::lua_state::*;
-pub use crate::state::LuaValue;
+pub use crate::state::{LuaValue, LUA_RIDX_GLOBALS};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -44,9 +44,17 @@ pub fn lua_tointeger(l: lua_State, idx: isize) -> LuaValue {
 
 // push functions (C -> stack)
 
+pub fn lua_pushinteger(l: lua_State, value: isize) {
+    l.borrow_mut().push(LuaValue::Integer(value as i64))
+}
+
 // get functions (Lua -> stack)
 
 // set functions (stack -> Lua)
+
+pub fn lua_setglobal(l: lua_State, value: &str) {
+    l.borrow_mut().set_global(value)
+}
 
 // 'load' and 'call' functions (load and run Lua code)
 

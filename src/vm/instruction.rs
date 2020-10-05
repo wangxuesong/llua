@@ -1,8 +1,8 @@
 use super::opcodes::*;
 use crate::state::{LuaState, LuaValue};
+use crate::vm::upvalue;
 
-const MAXARG_BX: isize = (1 << 18) - 1;
-// 262143
+const MAXARG_BX: isize = (1 << 18) - 1; // 262143
 const MAXARG_SBX: isize = MAXARG_BX >> 1; // 131071
 
 /*
@@ -89,11 +89,8 @@ impl Instruction for u32 {
                 let v = l.get_const(bx);
                 l.set_value(a, v);
             }
-            OP_GETUPVAL => {
-                dbg!(self.opname());
-                let (a, b, _) = self.abc();
-                l.set_value(a, l.get_upvalue(b));
-            }
+            OP_GETUPVAL => upvalue::get_upvalue(self, l),
+            OP_GETTABUP => upvalue::get_table_upvalue(self, l),
             OP_GETTABLE => {
                 dbg!(self.opname());
                 let (a, b, c) = self.abc();
@@ -158,8 +155,9 @@ impl Instruction for u32 {
             OP_CLOSURE => {
                 dbg!(self.opname());
                 let (a, b) = self.a_bx();
-                let proto = l.load_proto(b);
-                l.set_value(a, proto);
+                let proto = l.get_subproto(b);
+                let closure = l.load_proto(proto);
+                l.set_value(a, closure);
             }
             _ => {
                 dbg!(self.opname());

@@ -5,8 +5,10 @@ use crate::vm::Instruction;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+pub const LUA_RIDX_GLOBALS: isize = 2;
+
 pub struct CallInfo {
-    func: Rc<LuaClosure>,
+    func: Rc<RefCell<LuaClosure>>,
     pc: usize,
     pub base: isize,
     pub top: isize,
@@ -14,8 +16,8 @@ pub struct CallInfo {
 }
 
 impl CallInfo {
-    pub fn new(proto: Rc<LuaClosure>, base: isize) -> Self {
-        let top = base + proto.proto.max_stack_size as isize;
+    pub fn new(proto: Rc<RefCell<LuaClosure>>, base: isize) -> Self {
+        let top = base + proto.borrow().proto.max_stack_size as isize;
         CallInfo {
             func: proto,
             pc: 0,
@@ -26,8 +28,8 @@ impl CallInfo {
     }
 
     pub fn fetch(&mut self) -> Option<u32> {
-        if self.pc < self.func.proto.code.len() {
-            let inst = self.func.proto.code[self.pc];
+        if self.pc < self.func.borrow().proto.code.len() {
+            let inst = self.func.borrow().proto.code[self.pc];
             self.pc += 1;
             Some(inst)
         } else {
@@ -35,12 +37,12 @@ impl CallInfo {
         }
     }
 
-    pub fn get_const(&self, index: isize) -> &Constant {
-        &self.func.proto.constants[index as usize]
+    pub fn get_const(&self, index: isize) -> Constant {
+        self.func.borrow().proto.constants[index as usize].clone()
     }
 
-    pub fn load_proto(&self, index: isize) -> &Rc<Prototype> {
-        &self.func.proto.prototypes[index as usize]
+    pub fn load_proto(&self, index: isize) -> Rc<Prototype> {
+        self.func.borrow().proto.prototypes[index as usize].clone()
     }
 
     pub fn get_base(&self) -> isize {
@@ -53,30 +55,23 @@ impl CallInfo {
 }
 
 pub struct LuaState {
+    registry: LuaValue,
     pub stack: LuaStack,
-    // top: isize,
     base: isize,
     base_ci: Vec<Rc<RefCell<CallInfo>>>,
     ci: isize,
 }
 
 impl LuaState {
-    // pub fn new(proto: Prototype) -> LuaState {
-    //     let closure = LuaClosure::new(Rc::new(proto));
-    //     let ci = CallInfo::new(Rc::new(closure), 0);
-    //     LuaState {
-    //         stack: LuaStack::new(30),
-    //         // top: 0,
-    //         base: 0,
-    //         base_ci: vec![Rc::new(RefCell::new(ci))],
-    //         ci: 0,
-    //     }
-    // }
-
     pub fn new() -> LuaState {
+        let registry = LuaValue::new_table(3, 0);
+        if let LuaValue::Table(t) = &registry {
+            let global = LuaValue::new_table(0, 0);
+            t.borrow_mut().set_array(LUA_RIDX_GLOBALS, global);
+        }
         LuaState {
+            registry,
             stack: LuaStack::new(30),
-            // top: 0,
             base: 0,
             base_ci: vec![],
             ci: -1,
@@ -124,23 +119,37 @@ impl LuaState {
         self.stack.get(self.base + index)
     }
 
-    pub fn load_proto(&self, index: isize) -> LuaValue {
-        let proto = self.base_ci[self.ci as usize]
-            .borrow()
-            .load_proto(index)
-            .clone();
+    pub fn load_proto(&self, proto: Rc<Prototype>) -> LuaValue {
         let mut closure = LuaClosure::new(proto.clone());
         let n = proto.upvalues.len();
         if n > 0 {
             for i in 0..n {
                 if proto.upvalues[i].instack == 1 {
-                    let v = self.get_value(proto.upvalues[i].idx.clone() as isize);
+                    let v = if proto.upvalue_names[i].value.eq("_ENV") {
+                        if let LuaValue::Table(t) = &self.registry {
+                            let global = t
+                                .borrow_mut()
+                                .get(LuaValue::Integer(LUA_RIDX_GLOBALS as i64));
+                            global
+                        } else {
+                            LuaValue::Nil
+                        }
+                    } else {
+                        self.get_value(proto.upvalues[i].idx.clone() as isize)
+                    };
                     closure.upvalues.push(v);
                 }
             }
         }
 
-        LuaValue::Closure(Rc::new(closure))
+        LuaValue::Closure(Rc::new(RefCell::new(closure)))
+    }
+
+    pub fn get_subproto(&self, index: isize) -> Rc<Prototype> {
+        self.base_ci[self.ci as usize]
+            .borrow()
+            .load_proto(index)
+            .clone()
     }
 
     pub fn create_table(&mut self, array_size: isize, hash_size: isize) -> LuaValue {
@@ -156,7 +165,7 @@ impl LuaState {
 
     pub fn get_upvalue(&self, index: isize) -> LuaValue {
         let ci = self.base_ci[self.ci as usize].clone();
-        let x = ci.borrow().func.upvalues[index as usize].clone();
+        let x = ci.borrow().func.borrow().upvalues[index as usize].clone();
         x
     }
 
@@ -215,7 +224,7 @@ impl luaState for LuaState {
     fn abs_index(&self, index: isize) -> isize {
         if index >= 0 {
             index
-        }else {
+        } else {
             let top = self.stack.get_top();
             let base = self.base;
             top - base + index + 1
@@ -226,12 +235,27 @@ impl luaState for LuaState {
         self.stack.get_top()
     }
 
+    fn get(&self, index: isize) -> LuaValue {
+        self.get_value(index)
+    }
+
     fn push(&mut self, value: LuaValue) {
         self.stack.push(value)
     }
 
-    fn get(&self, index: isize) -> LuaValue {
-        self.get_value(index)
+    fn set_global(&mut self, key: &str) {
+        if let LuaValue::Table(reg) = &self.registry {
+            if let LuaValue::Table(g) = reg.borrow_mut().get_array(LUA_RIDX_GLOBALS) {
+                let value = self.stack.pop();
+                let k = LuaValue::String(key.to_string());
+                g.borrow_mut().set_hash(k, value);
+            }
+        }
+    }
+
+    fn load(&mut self, proto: Prototype) {
+        let closure = self.load_proto(Rc::new(proto));
+        self.stack.push(closure);
     }
 
     fn call(&mut self, nargs: isize, nresults: isize) {
