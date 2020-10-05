@@ -1,13 +1,15 @@
-use llua::api::{luaL_loadfile, luaL_newstate, LuaValue};
+use llua::api::*;
 
 #[test]
 fn sample_lua() {
     let l = luaL_newstate();
     luaL_loadfile(l.clone(), "tests/sample.out");
-    let mut ll = l.borrow_mut();
-    assert!(ll.is_function(ll.get_top()));
-    ll.call(0, 0);
-    assert!(ll.is_integer(ll.get_top()));
+    assert!(lua_isfunction(l.clone(), lua_gettop(l.clone())));
+    {
+        let mut ll = l.borrow_mut();
+        ll.call(0, 0);
+    }
+    assert!(lua_isnumber(l.clone(), lua_gettop(l.clone())));
 }
 
 #[test]
@@ -15,9 +17,15 @@ fn function_test() {
     dbg!("test script func.lua");
     let l = luaL_newstate();
     luaL_loadfile(l.clone(), "tests/func.out");
-    let mut ll = l.borrow_mut();
-    assert!(ll.is_function(ll.get_top()));
-    ll.call(0, 0);
-    assert!(ll.is_integer(ll.get_top()));
-    assert_eq!(ll.get(ll.get_top()), LuaValue::Integer(14));
+    assert!(lua_isfunction(l.clone(), -1));
+    {
+        let mut ll = l.borrow_mut();
+        ll.call(0, 0);
+    }
+    assert!(lua_isnumber(l.clone(), -1));
+    assert!(lua_isnumber(l.clone(), -2));
+    assert!(lua_isnumber(l.clone(), -3));
+    assert_eq!(lua_tointeger(l.clone(), -1), LuaValue::Integer(14));
+    assert_eq!(lua_tointeger(l.clone(), -2), LuaValue::Integer(3));
+    assert_eq!(lua_tointeger(l.clone(), -3), LuaValue::Integer(11));
 }

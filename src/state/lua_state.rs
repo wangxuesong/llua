@@ -206,12 +206,22 @@ impl LuaState {
 }
 
 impl LuaState {
-    fn abs_index(&self, index: isize) -> isize {
-        self.base + index
-    }
+    // fn abs_index(&self, index: isize) -> isize {
+    //     self.base + index
+    // }
 }
 
 impl luaState for LuaState {
+    fn abs_index(&self, index: isize) -> isize {
+        if index >= 0 {
+            index
+        }else {
+            let top = self.stack.get_top();
+            let base = self.base;
+            top - base + index + 1
+        }
+    }
+
     fn get_top(&self) -> isize {
         self.stack.get_top()
     }

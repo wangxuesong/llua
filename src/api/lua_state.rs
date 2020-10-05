@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 #[allow(non_camel_case_types)]
 pub trait luaState {
+    fn abs_index(&self, idx: isize) -> isize;
     fn get_top(&self) -> isize;
 
     fn push(&mut self, value: LuaValue);
@@ -19,18 +20,8 @@ pub trait luaState {
 pub type lua_State = Rc<RefCell<dyn luaState>>;
 
 #[allow(non_snake_case)]
-pub fn luaL_newstate() -> lua_State {
-    let l = crate::state::LuaState::new();
-    Rc::new(RefCell::new(l))
-}
-
-#[allow(non_snake_case)]
 pub fn luaL_loadfile(l: lua_State, filename: &str) {
     let proto = crate::vm::read_chunk(filename);
     let closure = LuaValue::new_lua_closure(proto);
     l.borrow_mut().push(closure);
-}
-
-pub fn lua_call(l: lua_State, nargs: isize, nresults: isize) {
-    l.borrow_mut().call(nargs, nresults)
 }
