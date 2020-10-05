@@ -10,4 +10,13 @@ fn main() {
             .status()
             .unwrap();
     }
+    let test_lua_files = vec!["func", "sample"];
+    for file in test_lua_files {
+        Command::new("luac")
+            .args(&["-o"])
+            .arg(&format!("tests/{}.out", file))
+            .arg(format!("tests/{}.lua", file))
+            .status()
+            .unwrap();
+    }
 }

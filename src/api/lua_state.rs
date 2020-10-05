@@ -7,6 +7,7 @@ pub trait luaState {
     fn get_top(&self) -> isize;
 
     fn push(&mut self, value: LuaValue);
+    fn get(&self, index: isize) -> LuaValue;
 
     fn call(&mut self, nargs: isize, nresults: isize);
 
@@ -19,7 +20,7 @@ pub type lua_State = Rc<RefCell<dyn luaState>>;
 
 #[allow(non_snake_case)]
 pub fn luaL_newstate() -> lua_State {
-    let l = crate::state::LuaState::init();
+    let l = crate::state::LuaState::new();
     Rc::new(RefCell::new(l))
 }
 

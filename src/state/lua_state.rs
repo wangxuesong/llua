@@ -10,6 +10,7 @@ pub struct CallInfo {
     pc: usize,
     pub base: isize,
     pub top: isize,
+    pub nresults: isize,
 }
 
 impl CallInfo {
@@ -20,6 +21,7 @@ impl CallInfo {
             pc: 0,
             base,
             top,
+            nresults: 0,
         }
     }
 
@@ -52,29 +54,29 @@ impl CallInfo {
 
 pub struct LuaState {
     pub stack: LuaStack,
-    top: isize,
+    // top: isize,
     base: isize,
     base_ci: Vec<Rc<RefCell<CallInfo>>>,
     ci: isize,
 }
 
 impl LuaState {
-    pub fn new(proto: Prototype) -> LuaState {
-        let closure = LuaClosure::new(Rc::new(proto));
-        let ci = CallInfo::new(Rc::new(closure), 0);
-        LuaState {
-            stack: LuaStack::new(30),
-            top: 0,
-            base: 0,
-            base_ci: vec![Rc::new(RefCell::new(ci))],
-            ci: 0,
-        }
-    }
+    // pub fn new(proto: Prototype) -> LuaState {
+    //     let closure = LuaClosure::new(Rc::new(proto));
+    //     let ci = CallInfo::new(Rc::new(closure), 0);
+    //     LuaState {
+    //         stack: LuaStack::new(30),
+    //         // top: 0,
+    //         base: 0,
+    //         base_ci: vec![Rc::new(RefCell::new(ci))],
+    //         ci: 0,
+    //     }
+    // }
 
-    pub fn init() -> LuaState {
+    pub fn new() -> LuaState {
         LuaState {
             stack: LuaStack::new(30),
-            top: 0,
+            // top: 0,
             base: 0,
             base_ci: vec![],
             ci: -1,
@@ -119,7 +121,7 @@ impl LuaState {
     }
 
     pub fn get_value(&self, index: isize) -> LuaValue {
-        self.stack.get(index)
+        self.stack.get(self.base + index)
     }
 
     pub fn load_proto(&self, index: isize) -> LuaValue {
@@ -132,7 +134,7 @@ impl LuaState {
         if n > 0 {
             for i in 0..n {
                 if proto.upvalues[i].instack == 1 {
-                    let v = self.get_value(self.base + proto.upvalues[i].idx.clone() as isize);
+                    let v = self.get_value(proto.upvalues[i].idx.clone() as isize);
                     closure.upvalues.push(v);
                 }
             }
@@ -160,10 +162,11 @@ impl LuaState {
 
     pub fn precall(&mut self, a: isize, _b: isize, _c: isize) {
         if let LuaValue::Closure(func) = self.get_value(a) {
-            let ci = CallInfo::new(func.clone(), a + 1);
+            let mut ci = CallInfo::new(func.clone(), self.base + a + 1);
+            ci.nresults = _c - 1;
             self.base = ci.get_base();
-            self.top = ci.get_top();
-            let top = self.top;
+            // self.top = ci.get_top();
+            let top = ci.get_top();
             self.set_top(&top);
             self.base_ci.push(Rc::new(RefCell::new(ci)));
             self.ci += 1;
@@ -171,21 +174,40 @@ impl LuaState {
     }
 
     pub fn postcall(&mut self, a: isize, b: isize, _c: isize) {
+        if b == 1 {
+            return;
+        }
+
         let _ci = self.base_ci.pop().unwrap();
         self.ci -= 1;
 
-        if self.ci >= 0 {
-            self.base = self.base_ci[self.ci as usize].borrow().base;
-        }
+        let mut res = _ci.borrow().base - 1;
+        let wanted = _ci.borrow().nresults;
 
         if b > 1 {
-            let base = _ci.borrow().base;
-            let mut index = base - 1;
+            let mut index = res;
             for i in a..b - 1 + a {
-                self.set_value(index, self.get_value(i + base));
+                self.set_value(index - self.base, self.get_value(i));
                 index += 1;
             }
+            res = index;
         }
+
+        if self.ci >= 0 {
+            let current_ci = self.base_ci[self.ci as usize].clone();
+            self.base = current_ci.borrow().base;
+            let top = &current_ci.borrow_mut().get_top();
+            self.set_top(top);
+        } else {
+            self.base = 0;
+            self.set_top(&(res + wanted));
+        }
+    }
+}
+
+impl LuaState {
+    fn abs_index(&self, index: isize) -> isize {
+        self.base + index
     }
 }
 
@@ -198,26 +220,12 @@ impl luaState for LuaState {
         self.stack.push(value)
     }
 
-    fn call(&mut self, nargs: isize, nresults: isize) {
-        let index = self.get_top() - nargs;
-        if let LuaValue::Closure(func) = self.get_value(index) {
-            let ci = CallInfo::new(func.clone(), index + 1);
-            self.base = ci.get_base();
-            self.stack.set_size(ci.get_top());
-            self.base_ci.push(Rc::new(RefCell::new(ci)));
-            self.ci += 1;
+    fn get(&self, index: isize) -> LuaValue {
+        self.get_value(index)
+    }
 
-            loop {
-                match self.fetch() {
-                    Some(inst) => {
-                        inst.execute(self);
-                    }
-                    None => {
-                        break;
-                    }
-                }
-            }
-        }
+    fn call(&mut self, nargs: isize, nresults: isize) {
+        self.internal_call(nargs, &mut Option::None)
     }
 
     fn is_integer(&self, index: isize) -> bool {
@@ -235,6 +243,38 @@ impl luaState for LuaState {
             true
         } else {
             false
+        }
+    }
+}
+
+impl LuaState {
+    pub(crate) fn internal_call(
+        &mut self,
+        nargs: isize,
+        hook: &mut Option<&mut dyn FnMut(&LuaState)>,
+    ) {
+        let index = self.get_top() - nargs;
+        if let LuaValue::Closure(func) = self.get_value(index) {
+            let ci = CallInfo::new(func.clone(), index + 1);
+            self.base = ci.get_base();
+            self.stack.set_top(&ci.get_top());
+            self.base_ci.push(Rc::new(RefCell::new(ci)));
+            self.ci += 1;
+
+            loop {
+                match self.fetch() {
+                    Some(inst) => {
+                        inst.execute(self);
+                        match hook {
+                            Some(f) => f(self),
+                            None => (),
+                        }
+                    }
+                    None => {
+                        break;
+                    }
+                }
+            }
         }
     }
 }
