@@ -70,6 +70,24 @@ pub struct Prototype {
 }
 
 impl Prototype {
+    pub fn new() -> Prototype {
+        Prototype {
+            source: None,
+            line_defined: 0,
+            last_line_defined: 0,
+            num_params: 0,
+            is_vararg: 0,
+            max_stack_size: 0,
+            code: vec![],
+            constants: vec![],
+            upvalues: vec![],
+            prototypes: vec![],
+            line_info: vec![],
+            loc_vars: vec![],
+            upvalue_names: vec![],
+        }
+    }
+
     pub fn parse(orig_i: &[u8]) -> nom::IResult<&[u8], Prototype> {
         let i = orig_i;
         let (mut i, len) = nom::number::streaming::le_u8(i)?;

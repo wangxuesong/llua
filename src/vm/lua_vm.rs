@@ -3,6 +3,7 @@ use crate::state::LuaState;
 use crate::vm::Instruction;
 use std::fs::read;
 
+#[allow(dead_code)]
 pub fn lua_vm_execute(l: &mut LuaState, func: &mut Option<&mut dyn FnMut(&LuaState)>) {
     loop {
         match l.fetch() {

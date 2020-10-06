@@ -1,3 +1,4 @@
+use crate::api::lua_CFunction;
 use crate::chunk::binary::Prototype;
 use crate::state::LuaValue;
 use std::cell::RefCell;
@@ -13,6 +14,8 @@ pub trait luaState {
 
     fn set_global(&mut self, value: &str);
 
+    fn push_native_function(&mut self, func: lua_CFunction);
+
     fn load(&mut self, proto: Prototype);
     fn call(&mut self, nargs: isize, nresults: isize);
 
@@ -27,20 +30,4 @@ pub type lua_State = Rc<RefCell<dyn luaState>>;
 pub fn luaL_loadfile(l: lua_State, filename: &str) {
     let proto = crate::vm::read_chunk(filename);
     l.borrow_mut().load(proto);
-    return;
-    let closure = LuaValue::new_lua_closure(proto);
-    if let LuaValue::Closure(c) = &closure {
-        let n = c.borrow_mut().proto.upvalues.len();
-        if n > 0 {
-            // for i in 0..n {
-            //     if c.borrow_mut().proto.upvalues[i].instack == 1 {
-            //         let v = l.borrow_mut().get(c.borrow_mut().proto.upvalues[i].idx.clone() as isize);
-            if let LuaValue::Closure(c) = &closure {
-                // c.borrow_mut().upvalues.push(v);
-            }
-            // }
-            // }
-        }
-    }
-    l.borrow_mut().push(closure);
 }

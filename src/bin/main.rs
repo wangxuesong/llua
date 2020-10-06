@@ -1,13 +1,9 @@
-mod api;
-mod chunk;
-mod state;
-mod vm;
-
-use crate::chunk::binary::{Chunk, Constant, Header, Prototype};
-use crate::state::LuaState;
-use crate::vm::opcodes::*;
-use crate::vm::{lua_vm_execute, Instruction};
+extern crate llua;
 use clap::{App, Arg};
+use llua::api::*;
+use llua::chunk::binary::{Chunk, Constant, Header, Prototype};
+use llua::vm::opcodes::*;
+use llua::vm::Instruction;
 
 fn main() {
     let matches = App::new("llua")
@@ -38,13 +34,21 @@ fn main() {
 }
 
 fn lua_main(input: &str) {
-    let content = std::fs::read(input).unwrap();
-    let parse_result = Chunk::parse(content.as_slice()).unwrap();
-    let chunk: Chunk = parse_result.1;
-    let index = chunk.main.max_stack_size.clone() as isize;
-    let mut l = LuaState::new(chunk.main);
-    l.set_top(&index);
-    lua_vm_execute(&mut l, &mut Option::None);
+    let l = luaL_newstate();
+    lua_pushcfunction(l.clone(), print);
+    lua_setglobal(l.clone(), "print");
+    luaL_loadfile(l.clone(), input);
+    {
+        let mut l = l.borrow_mut();
+        l.call(0, 0);
+    }
+}
+
+fn print(l: lua_State) -> usize {
+    let top = l.borrow().get_top();
+    let arg = lua_tostring(l, top);
+    print!("{}", arg);
+    return 0;
 }
 
 fn show_binary(input: &str) {
@@ -163,7 +167,7 @@ fn print_consts(f: &Prototype) {
 }
 
 fn print_const(n: usize, k: &Constant) {
-    use crate::chunk::binary::ConstantValue::*;
+    use llua::chunk::binary::ConstantValue::*;
     match &k.const_value {
         Nil => println!("\t{}\tnil", n),
         Boolean(b) => println!("\t{}\t{}", n, b),

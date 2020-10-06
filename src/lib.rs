@@ -1,4 +1,4 @@
 pub mod api;
-mod chunk;
-mod state;
-mod vm;
+pub mod chunk;
+pub mod state;
+pub mod vm;

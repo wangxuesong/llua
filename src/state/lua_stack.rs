@@ -1,5 +1,6 @@
 use crate::state::lua_value::LuaValue;
 
+#[derive(Clone)]
 pub struct LuaStack {
     pub stack: Vec<LuaValue>,
     top: isize,

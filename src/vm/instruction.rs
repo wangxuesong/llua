@@ -131,7 +131,7 @@ impl Instruction for u32 {
             OP_CALL => {
                 dbg!(self.opname());
                 let (a, b, c) = self.abc();
-                if let LuaValue::Closure(_func) = l.get_value(a) {
+                if let LuaValue::Closure(_) = l.get_value(a) {
                     l.precall(a, b, c);
                 }
             }

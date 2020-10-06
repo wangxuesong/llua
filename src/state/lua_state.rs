@@ -1,4 +1,4 @@
-use crate::api::luaState;
+use crate::api::{luaState, lua_State};
 use crate::chunk::binary::{Constant, ConstantValue, Prototype};
 use crate::state::{LuaClosure, LuaStack, LuaTable, LuaValue};
 use crate::vm::Instruction;
@@ -54,6 +54,7 @@ impl CallInfo {
     }
 }
 
+#[derive(Clone)]
 pub struct LuaState {
     registry: LuaValue,
     pub stack: LuaStack,
@@ -169,12 +170,20 @@ impl LuaState {
         x
     }
 
-    pub fn precall(&mut self, a: isize, _b: isize, _c: isize) {
+    pub fn precall(&mut self, a: isize, b: isize, _c: isize) {
         if let LuaValue::Closure(func) = self.get_value(a) {
+            let s = self.clone();
+            if func.borrow().function.is_some() {
+                func.borrow().function.unwrap()(Rc::new(RefCell::new(s)));
+                let argc = b-1;
+                for _ in 0..argc {
+                    self.stack.pop();
+                }
+                return;
+            }
             let mut ci = CallInfo::new(func.clone(), self.base + a + 1);
             ci.nresults = _c - 1;
             self.base = ci.get_base();
-            // self.top = ci.get_top();
             let top = ci.get_top();
             self.set_top(&top);
             self.base_ci.push(Rc::new(RefCell::new(ci)));
@@ -232,7 +241,7 @@ impl luaState for LuaState {
     }
 
     fn get_top(&self) -> isize {
-        self.stack.get_top()
+        self.stack.get_top() - self.base
     }
 
     fn get(&self, index: isize) -> LuaValue {
@@ -251,6 +260,11 @@ impl luaState for LuaState {
                 g.borrow_mut().set_hash(k, value);
             }
         }
+    }
+
+    fn push_native_function(&mut self, func: fn(lua_State) -> usize) {
+        let closure = LuaValue::new_native_closure(func);
+        self.push(closure);
     }
 
     fn load(&mut self, proto: Prototype) {
