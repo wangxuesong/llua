@@ -175,7 +175,7 @@ impl LuaState {
             let s = self.clone();
             if func.borrow().function.is_some() {
                 func.borrow().function.unwrap()(Rc::new(RefCell::new(s)));
-                let argc = b-1;
+                let argc = b - 1;
                 for _ in 0..argc {
                     self.stack.pop();
                 }

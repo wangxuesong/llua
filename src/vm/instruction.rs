@@ -77,13 +77,13 @@ impl Instruction for u32 {
     fn execute(self, l: &mut LuaState) {
         match self.opcode() {
             OP_MOVE => {
-                dbg!(self.opname());
+                debug!(self.opname());
                 let (a, b, _) = self.abc();
                 let v = l.get_value(b);
                 l.set_value(a, v);
             }
             OP_LOADK => {
-                dbg!(self.opname());
+                debug!(self.opname());
                 let (a, bx) = self.a_bx();
 
                 let v = l.get_const(bx);
@@ -92,7 +92,7 @@ impl Instruction for u32 {
             OP_GETUPVAL => upvalue::get_upvalue(self, l),
             OP_GETTABUP => upvalue::get_table_upvalue(self, l),
             OP_GETTABLE => {
-                dbg!(self.opname());
+                debug!(self.opname());
                 let (a, b, c) = self.abc();
                 let value = l.get_value(b);
                 assert!(value.is_table());
@@ -102,7 +102,7 @@ impl Instruction for u32 {
                 }
             }
             OP_SETTABLE => {
-                dbg!(self.opname());
+                debug!(self.opname());
                 let (a, b, c) = self.abc();
                 let value = l.get_value(a);
                 assert!(value.is_table());
@@ -113,13 +113,13 @@ impl Instruction for u32 {
                 }
             }
             OP_NEWTABLE => {
-                dbg!(self.opname());
+                debug!(self.opname());
                 let (a, b, c) = self.abc();
                 let v = l.create_table(b, c);
                 l.set_value(a, v);
             }
             OP_ADD => {
-                dbg!(self.opname());
+                debug!(self.opname());
                 let (a, b, c) = self.abc();
                 if let LuaValue::Integer(b_value) = l.get_rk(b) {
                     if let LuaValue::Integer(c_value) = l.get_rk(c) {
@@ -129,19 +129,19 @@ impl Instruction for u32 {
                 }
             }
             OP_CALL => {
-                dbg!(self.opname());
+                debug!(self.opname());
                 let (a, b, c) = self.abc();
                 if let LuaValue::Closure(_) = l.get_value(a) {
                     l.precall(a, b, c);
                 }
             }
             OP_RETURN => {
-                dbg!(self.opname());
+                debug!(self.opname());
                 let (a, b, c) = self.abc();
                 l.postcall(a, b, c);
             }
             OP_SETLIST => {
-                dbg!(self.opname());
+                debug!(self.opname());
                 let (a, b, c) = self.abc();
                 let last = (c - 1) * 50/* LFIELDS_PER_FLUSH */ + b;
                 let value = l.get_value(a);
@@ -153,14 +153,14 @@ impl Instruction for u32 {
                 }
             }
             OP_CLOSURE => {
-                dbg!(self.opname());
+                debug!(self.opname());
                 let (a, b) = self.a_bx();
                 let proto = l.get_subproto(b);
                 let closure = l.load_proto(proto);
                 l.set_value(a, closure);
             }
             _ => {
-                dbg!(self.opname());
+                debug!(self.opname());
                 unimplemented!()
             }
         }

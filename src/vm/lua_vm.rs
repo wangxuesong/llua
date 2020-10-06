@@ -55,7 +55,7 @@ mod tests {
             LuaValue::Integer(3),
         ];
         let mut cls = |l: &LuaState| {
-            dbg!("hello");
+            debug!("hello");
             assert_eq!(
                 l.stack.stack[1], expect[expect_index],
                 "expect index {}",
@@ -89,7 +89,7 @@ mod tests {
             (4, LuaValue::Integer(6)),
         ];
         let mut expect_fun = |l: &LuaState| {
-            dbg!("assert local variable");
+            debug!("assert local variable");
             let (i, v) = expect[expect_index].clone();
             assert_eq!(
                 l.stack.stack[i], v,
@@ -167,7 +167,7 @@ mod tests {
             assert_eq!(l.stack.stack[3], LuaValue::Integer(88));
         }));
         let mut expect_fun = |l: &LuaState| {
-            dbg!("assert table");
+            debug!("assert table");
             let func = &mut expect_closure[expect_index];
             func(l);
             expect_index += 1;
@@ -186,7 +186,7 @@ mod tests {
         let mut expect_closure: Vec<Box<dyn FnMut(&LuaState)>> = Vec::new();
         // 1	[9] 	CLOSURE  	0 0	; 0x7fd20d4063c0
         expect_closure.push(Box::new(|l: &LuaState| {
-            dbg!("CLOSURE  	0 0");
+            debug!("CLOSURE  	0 0");
             if let LuaValue::Closure(_) = l.stack.stack[1] {
             } else {
                 assert!(false, "expect function")
@@ -194,7 +194,7 @@ mod tests {
         }));
         // 2	[11]	MOVE     	1 0
         expect_closure.push(Box::new(|l: &LuaState| {
-            dbg!("MOVE     	1 0");
+            debug!("MOVE     	1 0");
             if let LuaValue::Closure(_) = l.stack.stack[2] {
             } else {
                 assert!(false, "expect function")
@@ -202,17 +202,17 @@ mod tests {
         }));
         // 3	[11]	LOADK    	2 -1	; 11
         expect_closure.push(Box::new(|l: &LuaState| {
-            dbg!("LOADK    	2 -1	; 11");
+            debug!("LOADK    	2 -1	; 11");
             assert_eq!(l.stack.stack[3], LuaValue::Integer(11))
         }));
         // 4	[11]	LOADK    	3 -2	; 3
         expect_closure.push(Box::new(|l: &LuaState| {
-            dbg!("LOADK    	3 -2	; 3");
+            debug!("LOADK    	3 -2	; 3");
             assert_eq!(l.stack.stack[4], LuaValue::Integer(3))
         }));
         // 5	[11]	CALL     	1 3 2
         expect_closure.push(Box::new(|l: &LuaState| {
-            dbg!("CALL     	1 3 2");
+            debug!("CALL     	1 3 2");
             if let LuaValue::Closure(_) = l.stack.stack[2] {
             } else {
                 assert!(false, "expect function")
@@ -222,17 +222,17 @@ mod tests {
         }));
         // 1	[8]	ADD      	2 0 1
         expect_closure.push(Box::new(|l: &LuaState| {
-            dbg!("ADD      	2 0 1");
+            debug!("ADD      	2 0 1");
             assert_eq!(l.stack.stack[5], LuaValue::Integer(14))
         }));
         // 2	[8]	RETURN   	2 2
         expect_closure.push(Box::new(|l: &LuaState| {
-            dbg!("RETURN   	2 2");
+            debug!("RETURN   	2 2");
             assert_eq!(l.stack.stack[2], LuaValue::Integer(14))
         }));
         // 6	[11]	RETURN   	0 1
         expect_closure.push(Box::new(|l: &LuaState| {
-            dbg!("RETURN   	0 1");
+            debug!("RETURN   	0 1");
             assert_eq!(l.stack.stack[2], LuaValue::Integer(14))
         }));
 
@@ -263,7 +263,7 @@ mod tests {
         }));
         // 3	[11]	CLOSURE  	2 0
         expect_closure.push(Box::new(|l: &LuaState| {
-            dbg!("CLOSURE  	2 0");
+            debug!("CLOSURE  	2 0");
             if let LuaValue::Closure(_) = l.stack.stack[3] {
             } else {
                 assert!(false, "expect function")
@@ -271,7 +271,7 @@ mod tests {
         }));
         // 4	[12]	MOVE     	3 2
         expect_closure.push(Box::new(|l: &LuaState| {
-            dbg!("MOVE     	3 2");
+            debug!("MOVE     	3 2");
             if let LuaValue::Closure(_) = l.stack.stack[4] {
             } else {
                 assert!(false, "expect function")
@@ -279,7 +279,7 @@ mod tests {
         }));
         // 5	[12]	CALL     	3 1 1
         expect_closure.push(Box::new(|l: &LuaState| {
-            dbg!("CALL     	3 1 1");
+            debug!("CALL     	3 1 1");
             if let LuaValue::Closure(_) = l.stack.stack[4] {
             } else {
                 assert!(false, "expect function")

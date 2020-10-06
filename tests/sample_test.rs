@@ -1,4 +1,5 @@
 use llua::api::*;
+use llua::debug;
 
 #[test]
 fn sample_lua() {
@@ -14,7 +15,7 @@ fn sample_lua() {
 
 #[test]
 fn function_test() {
-    dbg!("test script func.lua");
+    debug!("test script func.lua");
     let l = luaL_newstate();
     luaL_loadfile(l.clone(), "tests/func.out");
     assert!(lua_isfunction(l.clone(), -1));
@@ -32,7 +33,7 @@ fn function_test() {
 
 #[test]
 fn global_test() {
-    dbg!("test script global.lua");
+    debug!("test script global.lua");
     let l = luaL_newstate();
     lua_pushinteger(l.clone(), 1103);
     lua_setglobal(l.clone(), "hui");
@@ -50,7 +51,7 @@ fn global_test() {
 
 #[test]
 fn print_test() {
-    dbg!("test script print.lua");
+    debug!("test script print.lua");
     fn print(l: lua_State) -> usize {
         let top = l.borrow().get_top();
         let arg = lua_tostring(l, top);
