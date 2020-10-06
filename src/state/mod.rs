@@ -9,5 +9,3 @@ pub use lua_stack::LuaStack;
 pub use lua_state::LuaState;
 pub use lua_table::LuaTable;
 pub use lua_value::LuaValue;
-
-pub use lua_state::LUA_RIDX_GLOBALS;

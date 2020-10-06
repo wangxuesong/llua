@@ -22,5 +22,5 @@ mod lua_vm;
 pub mod opcodes;
 mod upvalue;
 
-pub use lua_vm::read_chunk;
 pub use instruction::Instruction;
+pub use lua_vm::read_chunk;

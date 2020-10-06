@@ -1,8 +1,9 @@
+pub mod constants;
 pub mod lua_state;
 
 pub use self::lua_state::*;
 use crate::state::LuaState;
-pub use crate::state::{LuaValue, LUA_RIDX_GLOBALS};
+pub use crate::state::LuaValue;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -33,12 +34,27 @@ pub fn lua_gettop(l: lua_State) -> isize {
 
 // access functions (stack -> C)
 
-pub fn lua_isinteger(l: lua_State, idx: isize) -> bool {
-    let index = lua_absindex(l.clone(), idx);
-    l.borrow().is_integer(index)
+pub fn lua_isnil(l: lua_State, idx: isize) -> bool {
+    l.borrow().is_nil(lua_absindex(l.clone(), idx))
+}
+
+pub fn lua_isboolean(l: lua_State, idx: isize) -> bool {
+    l.borrow().is_boolean(lua_absindex(l.clone(), idx))
 }
 
 pub fn lua_isnumber(l: lua_State, idx: isize) -> bool {
+    l.borrow().is_number(lua_absindex(l.clone(), idx))
+}
+
+pub fn lua_isstring(l: lua_State, idx: isize) -> bool {
+    l.borrow().is_string(lua_absindex(l.clone(), idx))
+}
+
+pub fn lua_iscfunction(l: lua_State, idx: isize) -> bool {
+    l.borrow().is_cfunction(lua_absindex(l.clone(), idx))
+}
+
+pub fn lua_isinteger(l: lua_State, idx: isize) -> bool {
     let index = lua_absindex(l.clone(), idx);
     l.borrow().is_integer(index)
 }
@@ -46,6 +62,11 @@ pub fn lua_isnumber(l: lua_State, idx: isize) -> bool {
 pub fn lua_isfunction(l: lua_State, idx: isize) -> bool {
     let index = lua_absindex(l.clone(), idx);
     l.borrow().is_function(index)
+}
+
+pub fn lua_type(l: lua_State, idx: isize) -> isize {
+    let index = lua_absindex(l.clone(), idx);
+    l.borrow().lua_type(index)
 }
 
 pub fn lua_tointeger(l: lua_State, idx: isize) -> LuaValue {
@@ -66,8 +87,24 @@ pub fn lua_tostring(l: lua_State, idx: isize) -> String {
 
 // push functions (C -> stack)
 
+pub fn lua_pushnil(l: lua_State) {
+    l.borrow_mut().push(LuaValue::Nil)
+}
+
+pub fn lua_pushboolean(l: lua_State, value: bool) {
+    l.borrow_mut().push(LuaValue::Boolean(value))
+}
+
+pub fn lua_pushnumber(l: lua_State, value: f64) {
+    l.borrow_mut().push(LuaValue::Number(value))
+}
+
 pub fn lua_pushinteger(l: lua_State, value: isize) {
     l.borrow_mut().push(LuaValue::Integer(value as i64))
+}
+
+pub fn lua_pushstring(l: lua_State, value: &str) {
+    l.borrow_mut().push(LuaValue::String(value.to_string()))
 }
 
 pub fn lua_pushcfunction(l: lua_State, func: lua_CFunction) {

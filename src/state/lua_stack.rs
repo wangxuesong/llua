@@ -9,7 +9,6 @@ pub struct LuaStack {
 impl LuaStack {
     pub fn new(size: usize) -> LuaStack {
         let stack = Vec::with_capacity(size);
-        // stack.push(LuaValue::Nil);
         LuaStack { stack, top: 0 }
     }
 

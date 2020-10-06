@@ -1,11 +1,10 @@
+use crate::api::constants::*;
 use crate::api::{luaState, lua_State};
 use crate::chunk::binary::{Constant, ConstantValue, Prototype};
 use crate::state::{LuaClosure, LuaStack, LuaTable, LuaValue};
 use crate::vm::Instruction;
 use std::cell::RefCell;
 use std::rc::Rc;
-
-pub const LUA_RIDX_GLOBALS: isize = 2;
 
 pub struct CallInfo {
     func: Rc<RefCell<LuaClosure>>,
@@ -223,12 +222,6 @@ impl LuaState {
     }
 }
 
-impl LuaState {
-    // fn abs_index(&self, index: isize) -> isize {
-    //     self.base + index
-    // }
-}
-
 impl luaState for LuaState {
     fn abs_index(&self, index: isize) -> isize {
         if index >= 0 {
@@ -276,6 +269,30 @@ impl luaState for LuaState {
         self.internal_call(nargs, &mut Option::None)
     }
 
+    fn lua_type(&self, index: isize) -> isize {
+        match &self.stack.get(index) {
+            LuaValue::Nil => LUA_TNIL,
+            LuaValue::Boolean(_) => LUA_TBOOLEAN,
+            LuaValue::Integer(_) => LUA_TNUMBER,
+            LuaValue::Number(_) => LUA_TNUMBER,
+            LuaValue::String(_) => LUA_TSTRING,
+            LuaValue::Table(_) => LUA_TTABLE,
+            LuaValue::Closure(_) => LUA_TFUNCTION,
+        }
+    }
+
+    fn is_number(&self, index: isize) -> bool {
+        self.lua_type(index) == LUA_TNUMBER
+    }
+
+    fn is_string(&self, index: isize) -> bool {
+        self.lua_type(index) == LUA_TSTRING
+    }
+
+    fn is_function(&self, index: isize) -> bool {
+        self.lua_type(index) == LUA_TFUNCTION
+    }
+
     fn is_integer(&self, index: isize) -> bool {
         let v = &self.stack.get(index);
         if let LuaValue::Integer(_) = *v {
@@ -285,10 +302,26 @@ impl luaState for LuaState {
         }
     }
 
-    fn is_function(&self, index: isize) -> bool {
+    fn is_table(&self, index: isize) -> bool {
+        self.lua_type(index) == LUA_TTABLE
+    }
+
+    fn is_nil(&self, index: isize) -> bool {
+        self.lua_type(index) == LUA_TNIL
+    }
+
+    fn is_boolean(&self, index: isize) -> bool {
+        self.lua_type(index) == LUA_TBOOLEAN
+    }
+
+    fn is_cfunction(&self, index: isize) -> bool {
         let v = &self.stack.get(index);
-        if let LuaValue::Closure(_) = *v {
-            true
+        if let LuaValue::Closure(f) = (*v).clone() {
+            if f.borrow().function.is_some() {
+                true
+            } else {
+                false
+            }
         } else {
             false
         }

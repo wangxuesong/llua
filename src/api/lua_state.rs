@@ -19,7 +19,14 @@ pub trait luaState {
     fn load(&mut self, proto: Prototype);
     fn call(&mut self, nargs: isize, nresults: isize);
 
+    fn lua_type(&self, index: isize) -> isize;
+    fn is_number(&self, index: isize) -> bool;
+    fn is_string(&self, index: isize) -> bool;
+    fn is_cfunction(&self, index: isize) -> bool;
     fn is_integer(&self, index: isize) -> bool;
+    fn is_table(&self, index: isize) -> bool;
+    fn is_nil(&self, index: isize) -> bool;
+    fn is_boolean(&self, index: isize) -> bool;
     fn is_function(&self, index: isize) -> bool;
 }
 
