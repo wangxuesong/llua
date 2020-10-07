@@ -47,7 +47,7 @@ fn lua_main(input: &str) {
 fn print(l: lua_State) -> usize {
     let top = l.borrow().get_top();
     let arg = lua_tostring(l, top);
-    print!("{}", arg);
+    print!("{}\n", arg);
     return 0;
 }
 

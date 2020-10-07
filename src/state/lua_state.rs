@@ -9,7 +9,7 @@ use std::rc::Rc;
 pub struct CallInfo {
     func: Rc<RefCell<LuaClosure>>,
     pc: usize,
-    pub base: isize,
+    base: isize,
     pub top: isize,
     pub nresults: isize,
 }
@@ -212,11 +212,11 @@ impl LuaState {
 
         if b > 1 {
             // 返回值个数
-            let mut count = b - 1;
+            let count = b - 1;
             // 返回值起始位置
             let start = a;
             // 返回值目标位置
-            let mut index = -1;
+            let index = -1;
             for i in 0..count {
                 self.set_register(index + i, self.get_register(start + i))
             }
@@ -373,6 +373,6 @@ impl LuaState {
     }
 
     fn get_base(&self) -> isize {
-        self.base_ci[self.ci as usize].borrow().base
+        self.base_ci[self.ci as usize].borrow().get_base()
     }
 }
