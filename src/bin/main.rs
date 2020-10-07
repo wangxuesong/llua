@@ -38,10 +38,7 @@ fn lua_main(input: &str) {
     lua_pushcfunction(l.clone(), print);
     lua_setglobal(l.clone(), "print");
     luaL_loadfile(l.clone(), input);
-    {
-        let mut l = l.borrow_mut();
-        l.call(0, 0);
-    }
+    lua_call(l.clone(), 0,0);
 }
 
 fn print(l: lua_State) -> usize {
