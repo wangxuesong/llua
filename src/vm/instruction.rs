@@ -79,32 +79,32 @@ impl Instruction for u32 {
             OP_MOVE => {
                 debug!(self.opname());
                 let (a, b, _) = self.abc();
-                let v = l.get_value(b);
-                l.set_value(a, v);
+                let v = l.get_register(b);
+                l.set_register(a, v);
             }
             OP_LOADK => {
                 debug!(self.opname());
                 let (a, bx) = self.a_bx();
 
                 let v = l.get_const(bx);
-                l.set_value(a, v);
+                l.set_register(a, v);
             }
             OP_GETUPVAL => upvalue::get_upvalue(self, l),
             OP_GETTABUP => upvalue::get_table_upvalue(self, l),
             OP_GETTABLE => {
                 debug!(self.opname());
                 let (a, b, c) = self.abc();
-                let value = l.get_value(b);
+                let value = l.get_register(b);
                 assert!(value.is_table());
                 if let LuaValue::Table(table) = value {
                     let v = table.borrow().get(l.get_rk(c));
-                    l.set_value(a, v)
+                    l.set_register(a, v)
                 }
             }
             OP_SETTABLE => {
                 debug!(self.opname());
                 let (a, b, c) = self.abc();
-                let value = l.get_value(a);
+                let value = l.get_register(a);
                 assert!(value.is_table());
                 if let LuaValue::Table(table) = value {
                     for _i in 1..=b {
@@ -116,7 +116,7 @@ impl Instruction for u32 {
                 debug!(self.opname());
                 let (a, b, c) = self.abc();
                 let v = l.create_table(b, c);
-                l.set_value(a, v);
+                l.set_register(a, v);
             }
             OP_ADD => {
                 debug!(self.opname());
@@ -124,14 +124,18 @@ impl Instruction for u32 {
                 if let LuaValue::Integer(b_value) = l.get_rk(b) {
                     if let LuaValue::Integer(c_value) = l.get_rk(c) {
                         let add = b_value + c_value;
-                        l.set_value(a, LuaValue::Integer(add));
+                        l.set_register(a, LuaValue::Integer(add));
+                    } else {
+                        panic!()
                     }
+                } else {
+                    panic!()
                 }
             }
             OP_CALL => {
                 debug!(self.opname());
                 let (a, b, c) = self.abc();
-                if let LuaValue::Closure(_) = l.get_value(a) {
+                if let LuaValue::Closure(_) = l.get_register(a) {
                     l.precall(a, b, c);
                 }
             }
@@ -144,11 +148,13 @@ impl Instruction for u32 {
                 debug!(self.opname());
                 let (a, b, c) = self.abc();
                 let last = (c - 1) * 50/* LFIELDS_PER_FLUSH */ + b;
-                let value = l.get_value(a);
+                let value = l.get_register(a);
                 assert!(value.is_table());
                 if let LuaValue::Table(table) = value {
                     for i in 1..=b {
-                        table.borrow_mut().set_array(i, l.get_value(last - b + i))
+                        table
+                            .borrow_mut()
+                            .set_array(i, l.get_register(last - b + i))
                     }
                 }
             }
@@ -157,7 +163,7 @@ impl Instruction for u32 {
                 let (a, b) = self.a_bx();
                 let proto = l.get_subproto(b);
                 let closure = l.load_proto(proto);
-                l.set_value(a, closure);
+                l.set_register(a, closure);
             }
             _ => {
                 debug!(self.opname());

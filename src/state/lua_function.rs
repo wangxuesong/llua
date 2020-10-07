@@ -48,4 +48,12 @@ impl LuaClosure {
             upvalues: Vec::new(),
         }
     }
+
+    pub fn new_empty() -> LuaClosure {
+        LuaClosure {
+            proto: Rc::new(Prototype::new()),
+            function: None,
+            upvalues: Vec::new(),
+        }
+    }
 }

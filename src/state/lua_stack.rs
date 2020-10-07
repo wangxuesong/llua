@@ -8,35 +8,39 @@ pub struct LuaStack {
 
 impl LuaStack {
     pub fn new(size: usize) -> LuaStack {
-        let stack = Vec::with_capacity(size);
-        LuaStack { stack, top: 0 }
+        let mut stack = Vec::with_capacity(size);
+        stack.push(LuaValue::Nil);
+        LuaStack { stack, top: 1 }
     }
 
     pub fn get_top(&self) -> isize {
-        self.stack.len() as isize - 1
+        self.top
     }
 
     pub fn set_top(&mut self, index: &isize) {
-        if *index as usize >= self.stack.len() {
-            let size = *index as usize - self.stack.len();
+        let idx = *index;
+        if idx >= self.top {
+            let size = idx - self.top;
             for _ in 0..size {
                 self.stack.push(LuaValue::Nil);
+                self.top += 1;
             }
         } else {
-            let mut i = self.stack.len();
-            while i > *index as usize {
+            let mut i = self.top;
+            while i > idx {
                 self.stack.pop();
                 i -= 1;
+                self.top -= 1;
             }
         };
-        self.top = self.stack.len() as isize;
     }
 
     pub fn set_size(&mut self, index: isize) {
         if index > self.stack.len() as isize {
-            let top = self.stack.len() as isize;
+            let top = (self.stack.len() - 1) as isize;
             for _ in top..index {
                 self.stack.push(LuaValue::Nil);
+                self.top += 1;
             }
         }
     }

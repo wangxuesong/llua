@@ -16,7 +16,7 @@ pub struct CallInfo {
 
 impl CallInfo {
     pub fn new(proto: Rc<RefCell<LuaClosure>>, base: isize) -> Self {
-        let top = base + proto.borrow().proto.max_stack_size as isize;
+        let top = 1 + base + proto.borrow().proto.max_stack_size as isize;
         CallInfo {
             func: proto,
             pc: 0,
@@ -57,24 +57,28 @@ impl CallInfo {
 pub struct LuaState {
     registry: LuaValue,
     pub stack: LuaStack,
-    base: isize,
     base_ci: Vec<Rc<RefCell<CallInfo>>>,
     ci: isize,
 }
 
 impl LuaState {
     pub fn new() -> LuaState {
+        // 全局变量表
         let registry = LuaValue::new_table(3, 0);
         if let LuaValue::Table(t) = &registry {
             let global = LuaValue::new_table(0, 0);
             t.borrow_mut().set_array(LUA_RIDX_GLOBALS, global);
         }
+
+        // initialize first ci
+        let mut ci = CallInfo::new(Rc::new(RefCell::new(LuaClosure::new_empty())), 0);
+        ci.top = 0;
         LuaState {
             registry,
             stack: LuaStack::new(30),
-            base: 0,
-            base_ci: vec![],
-            ci: -1,
+            // base: 0,
+            base_ci: vec![Rc::new(RefCell::new(ci))],
+            ci: 0,
         }
     }
 
@@ -110,16 +114,20 @@ impl LuaState {
         if index > 0xFF {
             self.get_const(index - 0xFF - 1)
         } else {
-            let v = self.stack.stack[(self.base + index) as usize].clone();
+            let v = self.stack.get(self.get_base() + index + 1).clone();
             v
         }
     }
 
-    pub fn get_value(&self, index: isize) -> LuaValue {
-        self.stack.get(self.base + index)
+    pub fn get_register(&self, index: isize) -> LuaValue {
+        self.stack.get(self.get_base() + index + 1)
     }
 
-    pub fn load_proto(&self, proto: Rc<Prototype>) -> LuaValue {
+    pub fn get_value(&self, index: isize) -> LuaValue {
+        self.stack.get(self.get_base() + index)
+    }
+
+    pub fn load_proto(&mut self, proto: Rc<Prototype>) -> LuaValue {
         let mut closure = LuaClosure::new(proto.clone());
         let n = proto.upvalues.len();
         if n > 0 {
@@ -135,7 +143,7 @@ impl LuaState {
                             LuaValue::Nil
                         }
                     } else {
-                        self.get_value(proto.upvalues[i].idx.clone() as isize)
+                        self.get_rk(proto.upvalues[i].idx.clone() as isize)
                     };
                     closure.upvalues.push(v);
                 }
@@ -159,8 +167,12 @@ impl LuaState {
         ))))
     }
 
+    pub fn set_register(&mut self, index: isize, value: LuaValue) {
+        self.stack.set(self.get_base() + index + 1, value);
+    }
+
     pub fn set_value(&mut self, index: isize, value: LuaValue) {
-        self.stack.set(self.base + index, value);
+        self.stack.set(self.get_base() + index, value);
     }
 
     pub fn get_upvalue(&self, index: isize) -> LuaValue {
@@ -169,7 +181,7 @@ impl LuaState {
         x
     }
 
-    pub fn precall(&mut self, a: isize, b: isize, _c: isize) {
+    pub fn precall(&mut self, a: isize, b: isize, c: isize) {
         if let LuaValue::Closure(func) = self.get_value(a) {
             let s = self.clone();
             if func.borrow().function.is_some() {
@@ -180,9 +192,9 @@ impl LuaState {
                 }
                 return;
             }
-            let mut ci = CallInfo::new(func.clone(), self.base + a + 1);
-            ci.nresults = _c - 1;
-            self.base = ci.get_base();
+            let mut ci = CallInfo::new(func.clone(), self.get_base() + a + 1);
+            ci.nresults = c - 1;
+            // self.base = ci.get_base();
             let top = ci.get_top();
             self.set_top(&top);
             self.base_ci.push(Rc::new(RefCell::new(ci)));
@@ -195,30 +207,30 @@ impl LuaState {
             return;
         }
 
+        // base 是闭包在栈的位置索引，返回值第一个值的位置
+        let mut new_top = self.get_base();
+
+        if b > 1 {
+            // 返回值个数
+            let mut count = b - 1;
+            // 返回值起始位置
+            let start = a;
+            // 返回值目标位置
+            let mut index = -1;
+            for i in 0..count {
+                self.set_register(index + i, self.get_register(start + i))
+            }
+            new_top += count;
+        }
+
         let _ci = self.base_ci.pop().unwrap();
         self.ci -= 1;
 
-        let mut res = _ci.borrow().base - 1;
-        let wanted = _ci.borrow().nresults;
-
-        if b > 1 {
-            let mut index = res;
-            for i in a..b - 1 + a {
-                self.set_value(index - self.base, self.get_value(i));
-                index += 1;
-            }
-            res = index;
+        let wanted = self.base_ci[self.ci as usize].borrow().top;
+        if new_top < wanted {
+            new_top = wanted
         }
-
-        if self.ci >= 0 {
-            let current_ci = self.base_ci[self.ci as usize].clone();
-            self.base = current_ci.borrow().base;
-            let top = &current_ci.borrow_mut().get_top();
-            self.set_top(top);
-        } else {
-            self.base = 0;
-            self.set_top(&(res + wanted));
-        }
+        self.set_top(&new_top);
     }
 }
 
@@ -228,13 +240,15 @@ impl luaState for LuaState {
             index
         } else {
             let top = self.stack.get_top();
-            let base = self.base;
-            top - base + index + 1
+            let base = self.get_base();
+            top - base + index
         }
     }
 
+    // 参考 Lua 官方实现：L->top - (L->ci->func + 1)
+    // Lua 使用的是指针运算，这里采用的是基于数组索引的运算
     fn get_top(&self) -> isize {
-        self.stack.get_top() - self.base
+        self.stack.get_top() - (self.get_base() + 1)
     }
 
     fn get(&self, index: isize) -> LuaValue {
@@ -289,8 +303,17 @@ impl luaState for LuaState {
         self.lua_type(index) == LUA_TSTRING
     }
 
-    fn is_function(&self, index: isize) -> bool {
-        self.lua_type(index) == LUA_TFUNCTION
+    fn is_cfunction(&self, index: isize) -> bool {
+        let v = &self.stack.get(index);
+        if let LuaValue::Closure(f) = (*v).clone() {
+            if f.borrow().function.is_some() {
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
     }
 
     fn is_integer(&self, index: isize) -> bool {
@@ -314,17 +337,8 @@ impl luaState for LuaState {
         self.lua_type(index) == LUA_TBOOLEAN
     }
 
-    fn is_cfunction(&self, index: isize) -> bool {
-        let v = &self.stack.get(index);
-        if let LuaValue::Closure(f) = (*v).clone() {
-            if f.borrow().function.is_some() {
-                true
-            } else {
-                false
-            }
-        } else {
-            false
-        }
+    fn is_function(&self, index: isize) -> bool {
+        self.lua_type(index) == LUA_TFUNCTION
     }
 }
 
@@ -336,8 +350,7 @@ impl LuaState {
     ) {
         let index = self.get_top() - nargs;
         if let LuaValue::Closure(func) = self.get_value(index) {
-            let ci = CallInfo::new(func.clone(), index + 1);
-            self.base = ci.get_base();
+            let ci = CallInfo::new(func.clone(), index);
             self.stack.set_top(&ci.get_top());
             self.base_ci.push(Rc::new(RefCell::new(ci)));
             self.ci += 1;
@@ -357,5 +370,9 @@ impl LuaState {
                 }
             }
         }
+    }
+
+    fn get_base(&self) -> isize {
+        self.base_ci[self.ci as usize].borrow().base
     }
 }
