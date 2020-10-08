@@ -8,7 +8,7 @@ fn sample_lua() {
     luaL_loadfile(l.clone(), "tests/sample.out");
     assert_eq!(lua_gettop(l.clone()), 1);
     assert!(lua_isfunction(l.clone(), lua_gettop(l.clone())));
-        lua_call(l.clone(), 0, 0);
+    lua_call(l.clone(), 0, 0);
     assert!(lua_isnumber(l.clone(), lua_gettop(l.clone())));
 }
 
@@ -21,7 +21,7 @@ fn function_test() {
     luaL_loadfile(l.clone(), "tests/func.out");
     assert_eq!(lua_gettop(l.clone()), 1);
     assert!(lua_isfunction(l.clone(), -1));
-    lua_call(l.clone(), 0,0);
+    lua_call(l.clone(), 0, 0);
     assert_eq!(l.borrow().get_top(), 3);
     assert!(lua_isnumber(l.clone(), -1));
     assert!(lua_isnumber(l.clone(), -2));
@@ -42,7 +42,7 @@ fn global_test() {
     luaL_loadfile(l.clone(), "tests/global.out");
     assert_eq!(lua_gettop(l.clone()), 1);
     assert!(lua_isfunction(l.clone(), -1));
-    lua_call(l.clone(), 0,0);
+    lua_call(l.clone(), 0, 0);
     assert_eq!(lua_gettop(l.clone()), 2);
     assert!(lua_isnumber(l.clone(), -1));
     assert!(lua_isnumber(l.clone(), -2));
@@ -69,7 +69,7 @@ fn print_test() {
     luaL_loadfile(l.clone(), "tests/print.out");
     assert_eq!(lua_gettop(l.clone()), 1);
     assert!(lua_isfunction(l.clone(), -1));
-    lua_call(l.clone(),0,0);
+    lua_call(l.clone(), 0, 0);
     assert!(lua_isnumber(l.clone(), -1));
     assert_eq!(lua_tointeger(l.clone(), -1), LuaValue::Integer(881103));
 }

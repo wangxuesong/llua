@@ -11,8 +11,14 @@ pub trait luaState {
 
     fn get(&self, index: isize) -> LuaValue;
     fn push(&mut self, value: LuaValue);
+    fn pop(&mut self, n: isize);
+    fn pushvalue(&mut self, index: isize);
+
+    fn get_global(&mut self, name: &str);
+    fn raw_geti(&mut self, idx: isize, n: isize);
 
     fn set_global(&mut self, value: &str);
+    fn set_field(&mut self, index: isize, name: &str);
 
     fn push_native_function(&mut self, func: lua_CFunction);
 
@@ -32,9 +38,3 @@ pub trait luaState {
 
 #[allow(non_camel_case_types)]
 pub type lua_State = Rc<RefCell<dyn luaState>>;
-
-#[allow(non_snake_case)]
-pub fn luaL_loadfile(l: lua_State, filename: &str) {
-    let proto = crate::vm::read_chunk(filename);
-    l.borrow_mut().load(proto);
-}

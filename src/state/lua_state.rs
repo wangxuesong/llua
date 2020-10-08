@@ -1,5 +1,4 @@
-use crate::api::constants::*;
-use crate::api::{luaState, lua_State};
+use crate::api::*;
 use crate::chunk::binary::{Constant, ConstantValue, Prototype};
 use crate::state::{LuaClosure, LuaStack, LuaTable, LuaValue};
 use crate::vm::Instruction;
@@ -194,7 +193,7 @@ impl LuaState {
                     self.stack.pop();
                 }
                 self.base_ci.pop();
-                self.ci -=1;
+                self.ci -= 1;
                 return;
             }
             let mut ci = CallInfo::new(func.clone(), self.get_base() + a + 1);
@@ -264,6 +263,35 @@ impl luaState for LuaState {
         self.stack.push(value)
     }
 
+    fn pop(&mut self, n: isize) {
+        self.stack.pop();
+    }
+
+    fn pushvalue(&mut self, index: isize) {
+        let v = self.get(index);
+        self.push(v)
+    }
+
+    fn get_global(&mut self, key: &str) {
+        if let LuaValue::Table(reg) = &self.registry {
+            if let LuaValue::Table(g) = reg.borrow_mut().get_array(LUA_RIDX_GLOBALS) {
+                let k = LuaValue::String(key.to_string());
+                let value = g.borrow_mut().get(k);
+                self.stack.push(value);
+            };
+        }
+    }
+
+    fn raw_geti(&mut self, idx: isize, n: isize) {
+        if idx == LUA_REGISTRYINDEX {
+            if let LuaValue::Table(reg) = &self.registry {
+                if let v = reg.borrow_mut().get_array(n) {
+                    self.stack.push(v);
+                }
+            }
+        }
+    }
+
     fn set_global(&mut self, key: &str) {
         if let LuaValue::Table(reg) = &self.registry {
             if let LuaValue::Table(g) = reg.borrow_mut().get_array(LUA_RIDX_GLOBALS) {
@@ -271,6 +299,14 @@ impl luaState for LuaState {
                 let k = LuaValue::String(key.to_string());
                 g.borrow_mut().set_hash(k, value);
             }
+        }
+    }
+
+    fn set_field(&mut self, index: isize, name: &str) {
+        let v = self.stack.pop();
+        if let LuaValue::Table(t) = self.get(index) {
+            t.borrow_mut()
+                .set_hash(LuaValue::String(name.to_string()), v)
         }
     }
 
@@ -289,7 +325,7 @@ impl luaState for LuaState {
     }
 
     fn lua_type(&self, index: isize) -> isize {
-        match &self.stack.get(index) {
+        match &self.get_value(index) {
             LuaValue::Nil => LUA_TNIL,
             LuaValue::Boolean(_) => LUA_TBOOLEAN,
             LuaValue::Integer(_) => LUA_TNUMBER,

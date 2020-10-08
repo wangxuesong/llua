@@ -1,7 +1,12 @@
-pub mod constants;
-pub mod lua_state;
+mod aux_lib;
+mod constants;
+mod lua_state;
+mod std_libs;
 
+pub use self::aux_lib::*;
+pub use self::constants::*;
 pub use self::lua_state::*;
+pub use self::std_libs::*;
 use crate::state::LuaState;
 pub use crate::state::LuaValue;
 use std::cell::RefCell;
@@ -11,12 +16,6 @@ use std::rc::Rc;
 pub type lua_CFunction = fn(lua_State) -> usize;
 
 // state manipulation
-
-#[allow(non_snake_case)]
-pub fn luaL_newstate() -> lua_State {
-    let l = crate::state::LuaState::new();
-    Rc::new(RefCell::new(l))
-}
 
 pub fn create_state(l: LuaState) -> lua_State {
     Rc::new(RefCell::new(l))
@@ -30,6 +29,11 @@ pub fn lua_absindex(l: lua_State, idx: isize) -> isize {
 
 pub fn lua_gettop(l: lua_State) -> isize {
     l.borrow().get_top()
+}
+
+pub fn lua_pushvalue(l: lua_State, idx: isize) {
+    let index = lua_absindex(l.clone(), idx);
+    l.borrow_mut().pushvalue(index)
 }
 
 // access functions (stack -> C)
@@ -62,6 +66,11 @@ pub fn lua_isinteger(l: lua_State, idx: isize) -> bool {
 pub fn lua_isfunction(l: lua_State, idx: isize) -> bool {
     let index = lua_absindex(l.clone(), idx);
     l.borrow().is_function(index)
+}
+
+pub fn lua_istable(l: lua_State, idx: isize) -> bool {
+    let index = lua_absindex(l.clone(), idx);
+    l.borrow().is_table(index)
 }
 
 pub fn lua_type(l: lua_State, idx: isize) -> isize {
@@ -111,12 +120,37 @@ pub fn lua_pushcfunction(l: lua_State, func: lua_CFunction) {
     l.borrow_mut().push_native_function(func)
 }
 
+pub fn lua_pushglobaltable(l: lua_State) {
+    lua_rawgeti(l, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
+}
+
+pub fn lua_pop(l: lua_State, n: isize) {
+    l.borrow_mut().pop(n)
+}
+
 // get functions (Lua -> stack)
+
+pub fn lua_getglobal(l: lua_State, name: &str) {
+    l.borrow_mut().get_global(name)
+}
+
+pub fn lua_rawgeti(l: lua_State, idx: isize, n: isize) {
+    l.borrow_mut().raw_geti(idx, n)
+}
 
 // set functions (stack -> Lua)
 
 pub fn lua_setglobal(l: lua_State, value: &str) {
     l.borrow_mut().set_global(value)
+}
+
+pub fn lua_settable(l: lua_State, idx: isize) {
+    unimplemented!();
+}
+
+pub fn lua_setfield(l: lua_State, idx: isize, name: &str) {
+    let index = lua_absindex(l.clone(), idx);
+    l.borrow_mut().set_field(index, name)
 }
 
 // 'load' and 'call' functions (load and run Lua code)

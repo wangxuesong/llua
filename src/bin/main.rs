@@ -35,17 +35,9 @@ fn main() {
 
 fn lua_main(input: &str) {
     let l = luaL_newstate();
-    lua_pushcfunction(l.clone(), print);
-    lua_setglobal(l.clone(), "print");
+    luaopen_base(l.clone());
     luaL_loadfile(l.clone(), input);
-    lua_call(l.clone(), 0,0);
-}
-
-fn print(l: lua_State) -> usize {
-    let top = l.borrow().get_top();
-    let arg = lua_tostring(l, top);
-    print!("{}\n", arg);
-    return 0;
+    lua_call(l.clone(), 0, 0);
 }
 
 fn show_binary(input: &str) {
