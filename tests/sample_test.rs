@@ -55,6 +55,7 @@ fn print_test() {
     debug!("test script print.lua");
     fn print(l: lua_State) -> usize {
         let top = l.borrow().get_top();
+        assert_eq!(top, 1);
         let arg = lua_tostring(l, top);
         assert_eq!(arg, "Hello SweetHui".to_string());
         return 0;

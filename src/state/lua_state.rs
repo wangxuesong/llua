@@ -183,13 +183,18 @@ impl LuaState {
 
     pub fn precall(&mut self, a: isize, b: isize, c: isize) {
         if let LuaValue::Closure(func) = self.get_value(a) {
-            let s = self.clone();
             if func.borrow().function.is_some() {
-                func.borrow().function.unwrap()(Rc::new(RefCell::new(s)));
+                let mut ci = CallInfo::new(func.clone(), self.get_base() + a + 1);
+                ci.nresults = c - 1;
+                self.base_ci.push(Rc::new(RefCell::new(ci)));
+                self.ci += 1;
+                func.borrow().function.unwrap()(Rc::new(RefCell::new(self.clone())));
                 let argc = b - 1;
                 for _ in 0..argc {
                     self.stack.pop();
                 }
+                self.base_ci.pop();
+                self.ci -=1;
                 return;
             }
             let mut ci = CallInfo::new(func.clone(), self.get_base() + a + 1);
